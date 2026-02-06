@@ -109,9 +109,10 @@ function animate() {
   if (rotateLeft) yawObject.rotation.y += turnSpeed;
   if (rotateRight) yawObject.rotation.y -= turnSpeed;
 
-  // Look up/down (pitch)
-  if (lookUp) pitchObject.rotation.x += lookSpeed;
-  if (lookDown) pitchObject.rotation.x -= lookSpeed;
+  // Look up/down (NOT inverted)
+  if (lookUp) pitchObject.rotation.x -= lookSpeed;   // UP arrow → look UP
+  if (lookDown) pitchObject.rotation.x += lookSpeed; // DOWN arrow → look DOWN
+
 
   // Clamp pitch to prevent flipping
   pitchObject.rotation.x = Math.max(
