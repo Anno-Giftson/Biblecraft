@@ -70,11 +70,13 @@ class PointerLockControlsCustom {
   // Minecraft-style movement
   // ==========================
   moveForward(distance){
-    // move along camera direction (including vertical)
-    const vector = new THREE.Vector3(0,0,-1).applyQuaternion(this.yawObject.quaternion);
-    vector.normalize();
-    this.yawObject.position.add(vector.multiplyScalar(distance));
-  }
+    // Move along full camera direction (yaw + pitch)
+    const direction = new THREE.Vector3(0,0,-1);
+    direction.applyQuaternion(this.pitchObject.quaternion); // include pitch
+    direction.applyQuaternion(this.yawObject.quaternion);   // include yaw
+    direction.normalize();
+    this.yawObject.position.add(direction.multiplyScalar(distance));
+}
 
   moveRight(distance){
     // move sideways relative to camera
