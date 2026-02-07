@@ -157,3 +157,20 @@ window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ==========================
+// Click to lock mouse AND go full screen
+// ==========================
+const canvas = renderer.domElement;
+
+canvas.addEventListener("click", async () => {
+  // Request pointer lock
+  controls.lock();
+
+  // Request full-screen
+  if (canvas.requestFullscreen) {
+    await canvas.requestFullscreen();
+  } else if (canvas.webkitRequestFullscreen) { // Safari
+    await canvas.webkitRequestFullscreen();
+  }
+});
+
