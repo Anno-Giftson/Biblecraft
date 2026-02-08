@@ -50,15 +50,24 @@
 <div id="game-container">
   <div id="crosshair"></div>
   
-    <!-- Settings UI inside container -->
-  <button id="open-settings" style="position:absolute; top:10px; left:10px; font-size:24px; z-index:10000;">⚙️</button>
+  <!-- Gear Button -->
+<button id="open-settings" style="
+    position:absolute; top:10px; left:10px;
+    font-size:24px; z-index:10000; cursor:pointer;
+    background:none; border:none; color:white;">
+    ⚙️
+</button>
 
-  <div id="settings-panel" style="position:absolute; top:50px; right:10px; background:#222; color:white; padding:10px; display:none; z-index:10000;">
-    <label>Sensitivity: <input type="range" id="sensitivity" min="0.001" max="0.01" step="0.001" value="0.002"></label><br>
-    <label>Invert Y: <input type="checkbox" id="invertY"></label><br>
-    <button id="close-settings">Close</button>
-  </div>
-  
+<!-- Settings Drop-down Panel -->
+<div id="settings-panel" style="
+    position:absolute; top:40px; left:10px;
+    background:#222; color:white; padding:10px;
+    display:none; z-index:10000;
+    border:2px solid #555; border-radius:4px;
+    opacity:0; transform:translateY(-10px);
+    transition:opacity 0.2s ease, transform 0.2s ease;">
+  <label>Sensitivity: <input type="range" id="sensitivity" min="0.001" max="0.01" step="0.001" value="0.002"></label><br>
+  <label>Invert Y: <input type="checkbox" id="invertY"></label>
 </div>
 
 
