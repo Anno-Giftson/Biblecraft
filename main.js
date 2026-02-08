@@ -127,19 +127,14 @@ document.addEventListener('keyup', e=>{
 // ==========================
 // Animate loop
 // ==========================
-function animate(){
+function animate() {
   requestAnimationFrame(animate);
 
-  if(moveForward) controls.moveForward(speed);
-  if(moveBackward) controls.moveForward(-speed);
-  if(moveLeft) controls.moveRight(-speed);
-  if(moveRight) controls.moveRight(speed);
+  updatePlayerPhysics();  // handles movement, collisions, gravity
 
-  if(moveUp) controls.getObject().position.y += verticalSpeed;
-  if(moveDown) controls.getObject().position.y -= verticalSpeed;
-
-  renderer.render(scene,camera);
+  renderer.render(scene, camera); // still needed!
 }
+
 animate();
 
 // ==========================
