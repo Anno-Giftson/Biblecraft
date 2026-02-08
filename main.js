@@ -174,9 +174,4 @@ canvas.addEventListener("click", async () => {
   }
 });
 
-const container = document.getElementById('game-container');
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-container.appendChild(renderer.domElement);
-
 
