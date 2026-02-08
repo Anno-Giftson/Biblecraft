@@ -108,6 +108,15 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
   }
 }
 
+// Keep track of block positions for collisions
+const blocks = [];
+scene.traverse(obj => {
+  if(obj.isMesh && obj.geometry.type === "BoxGeometry") {
+    blocks.push(obj.position.clone());
+  }
+});
+
+
 // ==========================
 // Movement
 // ==========================
@@ -136,7 +145,8 @@ document.addEventListener('keyup', e=>{
 function animate() {
   requestAnimationFrame(animate);
 
-  updatePlayerPhysics();  // collisions.js handles movement, gravity, jump
+  updatePlayerPhysics();  // handles movement, collisions, gravity
+
 
   renderer.render(scene, camera);
 }
