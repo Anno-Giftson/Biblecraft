@@ -174,5 +174,34 @@ container.addEventListener("click", async () => {
   }
 });
 
+// Default mouse sensitivity and inversion
+let mouseSensitivity = 0.002;
+let invertY = false;
+
+// Update controls on mouse move
+controls.onMouseMove = function(event) {
+  if (!this.isLocked) return;
+  const movementX = event.movementX || 0;
+  const movementY = event.movementY || 0;
+
+  this.yawObject.rotation.y -= movementX * mouseSensitivity;
+  this.pitchObject.rotation.x -= movementY * mouseSensitivity * (invertY ? -1 : 1);
+  this.pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitchObject.rotation.x));
+}.bind(controls);
+
+// Settings panel logic
+const panel = document.getElementById('settings-panel');
+document.getElementById('open-settings').addEventListener('click', () => panel.style.display = 'block');
+document.getElementById('close-settings').addEventListener('click', () => panel.style.display = 'none');
+
+// Sensitivity slider
+document.getElementById('sensitivity').addEventListener('input', e => {
+  mouseSensitivity = parseFloat(e.target.value);
+});
+
+// Invert Y checkbox
+document.getElementById('invertY').addEventListener('change', e => {
+  invertY = e.target.checked;
+});
 
 
