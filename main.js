@@ -1,4 +1,13 @@
 // ==========================
+// Variables
+// ==========================
+let mouseSensitivity = 0.002;
+let invertY = false;
+
+let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false;
+const speed = 0.1;
+
+// ==========================
 // Scene Setup
 // ==========================
 const container = document.getElementById('game-container');
@@ -38,7 +47,6 @@ class PointerLockControlsCustom {
     this.yawObject.add(this.pitchObject);
 
     this.isLocked = false;
-
     this.onMouseMove = this.onMouseMove.bind(this);
   }
 
@@ -89,6 +97,7 @@ scene.add(controls.getObject());
 const geometry = new THREE.BoxGeometry(1,1,1);
 const material = new THREE.MeshStandardMaterial({color:0x228B22});
 const worldSize = 20;
+
 for(let x=-worldSize/2;x<worldSize/2;x++){
   for(let z=-worldSize/2; z<worldSize/2; z++){
     const block = new THREE.Mesh(geometry, material);
@@ -100,27 +109,22 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
 // ==========================
 // Movement
 // ==========================
-let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false, moveUp=false, moveDown=false;
-const speed=0.1, verticalSpeed=0.1;
-
 document.addEventListener('keydown', e=>{
   switch(e.code){
     case "KeyW": moveForward=true; break;
     case "KeyS": moveBackward=true; break;
     case "KeyA": moveLeft=true; break;
     case "KeyD": moveRight=true; break;
-    case "Space": moveUp=true; break;
-    case "ShiftLeft": moveDown=true; break;
+    case "Space": jump(); break; // handled in collisions.js
   }
 });
+
 document.addEventListener('keyup', e=>{
   switch(e.code){
     case "KeyW": moveForward=false; break;
     case "KeyS": moveBackward=false; break;
     case "KeyA": moveLeft=false; break;
     case "KeyD": moveRight=false; break;
-    case "Space": moveUp=false; break;
-    case "ShiftLeft": moveDown=false; break;
   }
 });
 
@@ -130,18 +134,17 @@ document.addEventListener('keyup', e=>{
 function animate() {
   requestAnimationFrame(animate);
 
-  updatePlayerPhysics();  // handles movement, collisions, gravity
+  updatePlayerPhysics();  // collisions.js handles movement, gravity, jump
 
-  renderer.render(scene, camera); // still needed!
+  renderer.render(scene, camera);
 }
-
 animate();
 
 // ==========================
 // Resize
 // ==========================
 window.addEventListener('resize', ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
@@ -150,7 +153,7 @@ window.addEventListener('resize', ()=>{
 // Full-screen + pointer lock
 // ==========================
 container.addEventListener('click', e=>{
-  if(e.target.id === 'open-settings') return; // ignore gear button
+  if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
   controls.lock();
   if(container.requestFullscreen) container.requestFullscreen();
   else if(container.webkitRequestFullscreen) container.webkitRequestFullscreen();
@@ -194,15 +197,13 @@ panel.addEventListener('click', e=>e.stopPropagation());
 // ==========================
 // Sensitivity + Invert Y
 // ==========================
-let mouseSensitivity=0.002;
-let invertY=false;
-
 document.getElementById('sensitivity').addEventListener('input', e=>{
   mouseSensitivity=parseFloat(e.target.value);
 });
 document.getElementById('invertY').addEventListener('change', e=>{
   invertY=e.target.checked;
 });
+
 
 
 
