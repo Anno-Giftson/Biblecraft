@@ -4,33 +4,29 @@
 const container = document.getElementById('game-container');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // sky blue
+scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
+  75, window.innerWidth/window.innerHeight, 0.1, 1000
 );
 
-// Renderer attached to container
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 container.appendChild(renderer.domElement);
 
 // ==========================
 // Lighting
 // ==========================
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(5, 10, 5);
+scene.add(new THREE.AmbientLight(0xffffff,0.4));
+const sun = new THREE.DirectionalLight(0xffffff,1);
+sun.position.set(5,10,5);
 scene.add(sun);
 
 // ==========================
 // PointerLockControlsCustom
 // ==========================
 class PointerLockControlsCustom {
-  constructor(camera, domElement) {
+  constructor(camera, domElement){
     this.camera = camera;
     this.domElement = domElement || document.body;
 
@@ -46,63 +42,57 @@ class PointerLockControlsCustom {
     this.onMouseMove = this.onMouseMove.bind(this);
   }
 
-  getObject() {
-    return this.yawObject;
-  }
+  getObject(){ return this.yawObject; }
 
-  lock() {
-    if (this.isLocked) return;
+  lock(){
+    if(this.isLocked) return;
     this.isLocked = true;
     document.addEventListener('mousemove', this.onMouseMove, false);
   }
 
-  unlock() {
+  unlock(){
     this.isLocked = false;
     document.removeEventListener('mousemove', this.onMouseMove, false);
   }
 
-  onMouseMove(event) {
-    if (!this.isLocked) return;
+  onMouseMove(event){
+    if(!this.isLocked) return;
     const movementX = event.movementX || 0;
     const movementY = event.movementY || 0;
 
-    this.yawObject.rotation.y -= movementX * 0.002;
-    this.pitchObject.rotation.x -= movementY * 0.002;
-    this.pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitchObject.rotation.x));
+    this.yawObject.rotation.y -= movementX * mouseSensitivity;
+    this.pitchObject.rotation.x -= movementY * mouseSensitivity * (invertY ? -1 : 1);
+    this.pitchObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitchObject.rotation.x));
   }
 
-  // ==========================
-  // Minecraft-style movement
-  // ==========================
-  moveForward(distance) {
-    const direction = new THREE.Vector3(0, 0, -1);
-    direction.applyQuaternion(this.pitchObject.quaternion);
-    direction.applyQuaternion(this.yawObject.quaternion);
-    direction.normalize();
-    this.yawObject.position.add(direction.multiplyScalar(distance));
+  moveForward(distance){
+    const dir = new THREE.Vector3(0,0,-1);
+    dir.applyQuaternion(this.pitchObject.quaternion);
+    dir.applyQuaternion(this.yawObject.quaternion);
+    dir.normalize();
+    this.yawObject.position.add(dir.multiplyScalar(distance));
   }
 
-  moveRight(distance) {
-    const vector = new THREE.Vector3(1, 0, 0).applyQuaternion(this.yawObject.quaternion);
-    vector.normalize();
-    this.yawObject.position.add(vector.multiplyScalar(distance));
+  moveRight(distance){
+    const vec = new THREE.Vector3(1,0,0).applyQuaternion(this.yawObject.quaternion);
+    vec.normalize();
+    this.yawObject.position.add(vec.multiplyScalar(distance));
   }
 }
 
-// Attach controls to container
 const controls = new PointerLockControlsCustom(camera, container);
 scene.add(controls.getObject());
 
 // ==========================
 // Ground Blocks
 // ==========================
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+const geometry = new THREE.BoxGeometry(1,1,1);
+const material = new THREE.MeshStandardMaterial({color:0x228B22});
 const worldSize = 20;
-for (let x = -worldSize / 2; x < worldSize / 2; x++) {
-  for (let z = -worldSize / 2; z < worldSize / 2; z++) {
+for(let x=-worldSize/2;x<worldSize/2;x++){
+  for(let z=-worldSize/2; z<worldSize/2; z++){
     const block = new THREE.Mesh(geometry, material);
-    block.position.set(x, 0, z);
+    block.position.set(x,0,z);
     scene.add(block);
   }
 }
@@ -110,154 +100,113 @@ for (let x = -worldSize / 2; x < worldSize / 2; x++) {
 // ==========================
 // Movement
 // ==========================
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
-const speed = 0.1, verticalSpeed = 0.1;
+let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false, moveUp=false, moveDown=false;
+const speed=0.1, verticalSpeed=0.1;
 
-document.addEventListener('keydown', e => {
-  switch (e.code) {
-    case "KeyW": moveForward = true; break;
-    case "KeyS": moveBackward = true; break;
-    case "KeyA": moveLeft = true; break;
-    case "KeyD": moveRight = true; break;
-    case "Space": moveUp = true; break;
-    case "ShiftLeft": moveDown = true; break;
+document.addEventListener('keydown', e=>{
+  switch(e.code){
+    case "KeyW": moveForward=true; break;
+    case "KeyS": moveBackward=true; break;
+    case "KeyA": moveLeft=true; break;
+    case "KeyD": moveRight=true; break;
+    case "Space": moveUp=true; break;
+    case "ShiftLeft": moveDown=true; break;
   }
 });
-
-document.addEventListener('keyup', e => {
-  switch (e.code) {
-    case "KeyW": moveForward = false; break;
-    case "KeyS": moveBackward = false; break;
-    case "KeyA": moveLeft = false; break;
-    case "KeyD": moveRight = false; break;
-    case "Space": moveUp = false; break;
-    case "ShiftLeft": moveDown = false; break;
+document.addEventListener('keyup', e=>{
+  switch(e.code){
+    case "KeyW": moveForward=false; break;
+    case "KeyS": moveBackward=false; break;
+    case "KeyA": moveLeft=false; break;
+    case "KeyD": moveRight=false; break;
+    case "Space": moveUp=false; break;
+    case "ShiftLeft": moveDown=false; break;
   }
 });
 
 // ==========================
-// Animation loop
+// Animate loop
 // ==========================
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
 
-  if (moveForward) controls.moveForward(speed);
-  if (moveBackward) controls.moveForward(-speed);
-  if (moveLeft) controls.moveRight(-speed);
-  if (moveRight) controls.moveRight(speed);
+  if(moveForward) controls.moveForward(speed);
+  if(moveBackward) controls.moveForward(-speed);
+  if(moveLeft) controls.moveRight(-speed);
+  if(moveRight) controls.moveRight(speed);
 
-  if (moveUp) controls.getObject().position.y += verticalSpeed;
-  if (moveDown) controls.getObject().position.y -= verticalSpeed;
+  if(moveUp) controls.getObject().position.y += verticalSpeed;
+  if(moveDown) controls.getObject().position.y -= verticalSpeed;
 
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
 animate();
-
-const panel = document.getElementById('settings-panel');
-const button = document.getElementById('open-settings');
-
-let panelOpen = false;
-
-// Toggle panel on gear click
-button.addEventListener('click', e => {
-  e.stopPropagation(); // prevent click from closing immediately
-  panelOpen = !panelOpen;
-  if(panelOpen){
-    panel.style.display = 'block';
-    requestAnimationFrame(() => { // trigger animation
-      panel.style.opacity = 1;
-      panel.style.transform = 'translateY(0)';
-    });
-  } else {
-    panel.style.opacity = 0;
-    panel.style.transform = 'translateY(-10px)';
-    setTimeout(() => { if(!panelOpen) panel.style.display = 'none'; }, 200);
-  }
-});
-
-// Click anywhere else closes the panel
-document.addEventListener('click', () => {
-  if(panelOpen){
-    panelOpen = false;
-    panel.style.opacity = 0;
-    panel.style.transform = 'translateY(-10px)';
-    setTimeout(() => { panel.style.display = 'none'; }, 200);
-  }
-});
-
-// Prevent panel click from closing it
-panel.addEventListener('click', e => e.stopPropagation());
-
-// Sensitivity & Invert Y logic (same as before)
-let mouseSensitivity = 0.002;
-let invertY = false;
-
-controls.onMouseMove = function(event){
-  if(!this.isLocked) return;
-  const movementX = event.movementX || 0;
-  const movementY = event.movementY || 0;
-  this.yawObject.rotation.y -= movementX * mouseSensitivity;
-  this.pitchObject.rotation.x -= movementY * mouseSensitivity * (invertY ? -1 : 1);
-  this.pitchObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitchObject.rotation.x));
-}.bind(controls);
-
-document.getElementById('sensitivity').addEventListener('input', e => {
-  mouseSensitivity = parseFloat(e.target.value);
-});
-document.getElementById('invertY').addEventListener('change', e => {
-  invertY = e.target.checked;
-});
-
 
 // ==========================
 // Resize
 // ==========================
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ==========================
-// Click to lock pointer AND go full-screen
+// Full-screen + pointer lock
 // ==========================
-container.addEventListener("click", async () => {
+container.addEventListener('click', async e=>{
+  if(e.target.id === 'open-settings') return; // ignore gear button
   controls.lock();
-  if (container.requestFullscreen) {
-    await container.requestFullscreen();
-  } else if (container.webkitRequestFullscreen) {
-    await container.webkitRequestFullscreen();
+  if(container.requestFullscreen) await container.requestFullscreen();
+  else if(container.webkitRequestFullscreen) await container.webkitRequestFullscreen();
+});
+
+// ==========================
+// Settings drop-down logic
+// ==========================
+const panel = document.getElementById('settings-panel');
+const button = document.getElementById('open-settings');
+
+let panelOpen=false;
+
+button.addEventListener('click', e=>{
+  e.stopPropagation();
+  panelOpen = !panelOpen;
+  if(panelOpen){
+    panel.style.display='block';
+    requestAnimationFrame(()=>{
+      panel.style.opacity=1;
+      panel.style.transform='translateY(0)';
+    });
+  } else {
+    panel.style.opacity=0;
+    panel.style.transform='translateY(-10px)';
+    setTimeout(()=>{if(!panelOpen) panel.style.display='none';},200);
   }
 });
 
-// Default mouse sensitivity and inversion
-let mouseSensitivity = 0.002;
-let invertY = false;
+document.addEventListener('click', ()=>{
+  if(panelOpen){
+    panelOpen=false;
+    panel.style.opacity=0;
+    panel.style.transform='translateY(-10px)';
+    setTimeout(()=>{panel.style.display='none';},200);
+  }
+});
+panel.addEventListener('click', e=>e.stopPropagation());
 
-// Update controls on mouse move
-controls.onMouseMove = function(event) {
-  if (!this.isLocked) return;
-  const movementX = event.movementX || 0;
-  const movementY = event.movementY || 0;
+// ==========================
+// Sensitivity + Invert Y
+// ==========================
+let mouseSensitivity=0.002;
+let invertY=false;
 
-  this.yawObject.rotation.y -= movementX * mouseSensitivity;
-  this.pitchObject.rotation.x -= movementY * mouseSensitivity * (invertY ? -1 : 1);
-  this.pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitchObject.rotation.x));
-}.bind(controls);
-
-// Settings panel logic
-const panel = document.getElementById('settings-panel');
-document.getElementById('open-settings').addEventListener('click', () => panel.style.display = 'block');
-document.getElementById('close-settings').addEventListener('click', () => panel.style.display = 'none');
-
-// Sensitivity slider
-document.getElementById('sensitivity').addEventListener('input', e => {
-  mouseSensitivity = parseFloat(e.target.value);
+document.getElementById('sensitivity').addEventListener('input', e=>{
+  mouseSensitivity=parseFloat(e.target.value);
+});
+document.getElementById('invertY').addEventListener('change', e=>{
+  invertY=e.target.checked;
 });
 
-// Invert Y checkbox
-document.getElementById('invertY').addEventListener('change', e => {
-  invertY = e.target.checked;
-});
 
 
