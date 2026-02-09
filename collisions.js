@@ -8,13 +8,6 @@ let velocityY = 0;           // Vertical speed
 const gravity = -0.01;       // Gravity per frame
 let canJump = false;
 
-// Keep track of block positions
-const blocks = [];
-scene.traverse(obj => {
-  if (obj.isMesh && obj.geometry.type === "BoxGeometry") {
-    blocks.push(obj.position.clone());
-  }
-});
 
 // ==========================
 // Collision check
