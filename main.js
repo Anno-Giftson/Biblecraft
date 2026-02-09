@@ -157,14 +157,10 @@ window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ==========================
-// Full-screen + pointer lock
-// ==========================
-container.addEventListener('click', e=>{
-  if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
-  controls.lock();
-  if(container.requestFullscreen) container.requestFullscreen();
-  else if(container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+
+container.addEventListener('click', e => {
+  if (e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
+  controls.isLocked = true;
 });
 
 // ==========================
