@@ -17,13 +17,13 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 window.scene = scene;  // Make scene global so collisions.js can access it
 
-
 const camera = new THREE.PerspectiveCamera(
   75, window.innerWidth / window.innerHeight, 0.1, 1000
 );
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio); // ← optional, smoother
 container.appendChild(renderer.domElement);
 
 // ==========================
@@ -49,10 +49,8 @@ class PointerLockControlsCustom {
     this.yawObject.position.y = 2;
     this.yawObject.add(this.pitchObject);
 
-    this.isLocked = true;
+    this.isLocked = false; // ← start unlocked
     this.onMouseMove = this.onMouseMove.bind(this);
-
-    document.addEventListener('mousemove', this.onMouseMove, false);
   }
 
   getObject() { return this.yawObject; }
@@ -60,7 +58,7 @@ class PointerLockControlsCustom {
   lock() {
     if (this.isLocked) return;
     this.isLocked = true;
-    document.addEventListener('mousemove', this.onMouseMove, false);
+    document.addEventListener('mousemove', this.onMouseMove, false); // ← listen to mouse
   }
 
   unlock() {
@@ -114,7 +112,6 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
   }
 }
 
-
 // ==========================
 // Movement
 // ==========================
@@ -145,7 +142,6 @@ function animate() {
 
   updatePlayerPhysics();  // handles movement, collisions, gravity
 
-
   renderer.render(scene, camera);
 }
 animate();
@@ -159,10 +155,18 @@ window.addEventListener('resize', ()=>{
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ==========================
+// Fullscreen + pointer lock
+// ==========================
+container.addEventListener('click', e=>{
+  if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
 
-container.addEventListener('click', e => {
-  if (e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
-  controls.isLocked = true;
+  // pointer lock
+  controls.lock();
+
+  // fullscreen
+  if(container.requestFullscreen) container.requestFullscreen();
+  else if(container.webkitRequestFullscreen) container.webkitRequestFullscreen();
 });
 
 // ==========================
@@ -189,16 +193,8 @@ button.addEventListener('click', e=>{
   }
 });
 
-document.addEventListener('click', ()=>{
-  if(panelOpen){
-    panelOpen=false;
-    panel.style.opacity=0;
-    panel.style.transform='translateY(-10px)';
-    setTimeout(()=>{panel.style.display='none';},200);
-  }
-});
-
-panel.addEventListener('click', e=>e.stopPropagation());
+// Fix: Remove document click listener that closes the panel instantly
+// (on ChromeOS or school devices, clicks outside are unreliable)
 
 // ==========================
 // Sensitivity + Invert Y
@@ -210,19 +206,6 @@ document.getElementById('invertY').addEventListener('change', e=>{
   invertY=e.target.checked;
 });
 
-// ==========================
-// Gear panel click outside fix (school safe)
-// ==========================
-document.addEventListener('click', e => {
-  if (!panel.contains(e.target) && e.target !== button && panelOpen) {
-    panelOpen = false;
-    panel.style.opacity = 0;
-    panel.style.transform = 'translateY(-10px)';
-    setTimeout(() => {
-      if (!panelOpen) panel.style.display = 'none';
-    }, 200);
-  }
-});
 
 
 
