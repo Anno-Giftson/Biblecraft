@@ -51,6 +51,8 @@ class PointerLockControlsCustom {
 
     this.isLocked = true;
     this.onMouseMove = this.onMouseMove.bind(this);
+
+    document.addEventListener('mousemove', this.onMouseMove, false);
   }
 
   getObject() { return this.yawObject; }
@@ -207,6 +209,21 @@ document.getElementById('sensitivity').addEventListener('input', e=>{
 document.getElementById('invertY').addEventListener('change', e=>{
   invertY=e.target.checked;
 });
+
+// ==========================
+// Gear panel click outside fix (school safe)
+// ==========================
+document.addEventListener('click', e => {
+  if (!panel.contains(e.target) && e.target !== button && panelOpen) {
+    panelOpen = false;
+    panel.style.opacity = 0;
+    panel.style.transform = 'translateY(-10px)';
+    setTimeout(() => {
+      if (!panelOpen) panel.style.display = 'none';
+    }, 200);
+  }
+});
+
 
 
 
