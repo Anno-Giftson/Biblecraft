@@ -1,4 +1,5 @@
 window.blocks = [];
+
 // ==========================
 // Variables
 // ==========================
@@ -67,30 +68,20 @@ class PointerLockControlsCustom {
 
   onMouseMove(event) {
     if(!this.isLocked) return;
+
     const movementX = event.movementX || 0;
     const movementY = event.movementY || 0;
 
     this.yawObject.rotation.y -= movementX * mouseSensitivity;
     this.pitchObject.rotation.x -= movementY * mouseSensitivity * (invertY ? -1 : 1);
-    this.pitchObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitchObject.rotation.x));
-  }
-
-  moveForward(distance) {
-    const dir = new THREE.Vector3(0,0,-1);
-    dir.applyQuaternion(this.pitchObject.quaternion);
-    dir.applyQuaternion(this.yawObject.quaternion);
-    dir.normalize();
-    this.yawObject.position.add(dir.multiplyScalar(distance));
-  }
-
-  moveRight(distance) {
-    const vec = new THREE.Vector3(1,0,0).applyQuaternion(this.yawObject.quaternion);
-    vec.normalize();
-    this.yawObject.position.add(vec.multiplyScalar(distance));
+    this.pitchObject.rotation.x = Math.max(
+      -Math.PI/2,
+      Math.min(Math.PI/2, this.pitchObject.rotation.x)
+    );
   }
 }
 
-const controls = new PointerLockControlsCustom(camera, container);
+const controls = new PointerLockControlsCustom(camera, renderer.domElement);
 scene.add(controls.getObject());
 controls.getObject().position.set(0, 2, 5);
 window.controls = controls;
@@ -140,7 +131,9 @@ document.addEventListener('keyup', e=>{
 function animate() {
   requestAnimationFrame(animate);
 
-  updatePlayerPhysics();
+  if (controls.isLocked) {
+    updatePlayerPhysics();
+  }
 
   renderer.render(scene, camera);
 }
@@ -158,34 +151,20 @@ window.addEventListener('resize', ()=>{
 // ==========================
 // Pointer Lock
 // ==========================
-let isPointerLocked = false;
-
-// Request pointer lock on click
-container.addEventListener('click', e=>{
-  // Don't lock if clicking settings button or panel
+renderer.domElement.addEventListener('click', e=>{
   if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
-
-  // Request pointer lock
-  if(container.requestPointerLock) {
-    container.requestPointerLock();
-  } else if(container.mozRequestPointerLock) {
-    container.mozRequestPointerLock();
-  }
+  renderer.domElement.requestPointerLock();
 });
 
-// Handle pointer lock state change
 const handlePointerLockChange = () => {
-  if(document.pointerLockElement === container || document.mozPointerLockElement === container) {
-    isPointerLocked = true;
+  if(document.pointerLockElement === renderer.domElement) {
     controls.lock();
   } else {
-    isPointerLocked = false;
     controls.unlock();
   }
 };
 
 document.addEventListener('pointerlockchange', handlePointerLockChange);
-document.addEventListener('mozpointerlockchange', handlePointerLockChange);
 
 // ==========================
 // Settings panel
@@ -196,6 +175,11 @@ let panelOpen=false;
 
 button.addEventListener('click', e=>{
   e.stopPropagation();
+
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+
   panelOpen = !panelOpen;
   if(panelOpen){
     panel.style.display='block';
