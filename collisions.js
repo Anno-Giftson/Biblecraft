@@ -19,9 +19,13 @@ function checkCollision(pos) {
 
     const collideX = Math.abs(dx) < 0.5 + playerRadius;
     const collideZ = Math.abs(dz) < 0.5 + playerRadius;
-    const collideY = dy >= 0 && dy <= playerHeight;
 
-    if (collideX && collideZ && collideY) return true;
+    // IMPORTANT: do NOT count standing on top as a collision
+    const collideY = dy > 0.1 && dy < playerHeight - 0.1;
+
+    if (collideX && collideZ && collideY) {
+      return true;
+    }
   }
   return false;
 }
