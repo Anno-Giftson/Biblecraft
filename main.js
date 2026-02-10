@@ -15,7 +15,7 @@ const container = document.getElementById('game-container');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-window.scene = scene;  // Make scene global so collisions.js can access it
+window.scene = scene;
 
 const camera = new THREE.PerspectiveCamera(
   75, window.innerWidth / window.innerHeight, 0.1, 1000
@@ -56,7 +56,6 @@ class PointerLockControlsCustom {
   getObject() { return this.yawObject; }
 
   lock() {
-    if (this.isLocked) return;
     this.isLocked = true;
     document.addEventListener('mousemove', this.onMouseMove, false);
   }
@@ -94,7 +93,7 @@ class PointerLockControlsCustom {
 const controls = new PointerLockControlsCustom(camera, container);
 scene.add(controls.getObject());
 controls.getObject().position.set(0, 2, 5);
-window.controls = controls; // Make controls global for collisions.js
+window.controls = controls;
 
 // ==========================
 // Ground Blocks
@@ -103,8 +102,8 @@ const geometry = new THREE.BoxGeometry(1,1,1);
 const material = new THREE.MeshStandardMaterial({color:0x228B22});
 const worldSize = 20;
 
-for(let x=-worldSize/2;x<worldSize/2;x++){
-  for(let z=-worldSize/2; z<worldSize/2; z++){
+for(let x=-worldSize/2;x<worldSize/2;x++){ 
+  for(let z=-worldSize/2; z<worldSize/2; z++){ 
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x,0,z);
     scene.add(block);
@@ -157,39 +156,36 @@ window.addEventListener('resize', ()=>{
 });
 
 // ==========================
-// Click to lock pointer and fullscreen
+// Pointer Lock
 // ==========================
+let isPointerLocked = false;
+
+// Request pointer lock on click
 container.addEventListener('click', e=>{
+  // Don't lock if clicking settings button or panel
   if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
 
   // Request pointer lock
-  container.requestPointerLock = container.requestPointerLock || container.mozRequestPointerLock;
   if(container.requestPointerLock) {
-    container.requestPointerLock().catch(err => console.log('Pointer lock failed:', err));
-  }
-
-  // Request fullscreen
-  if(container.requestFullscreen) {
-    container.requestFullscreen().catch(err => {});
+    container.requestPointerLock();
+  } else if(container.mozRequestPointerLock) {
+    container.mozRequestPointerLock();
   }
 });
 
-// Handle pointer lock change
-document.addEventListener('pointerlockchange', ()=>{
-  if(document.pointerLockElement === container) {
+// Handle pointer lock state change
+const handlePointerLockChange = () => {
+  if(document.pointerLockElement === container || document.mozPointerLockElement === container) {
+    isPointerLocked = true;
     controls.lock();
   } else {
+    isPointerLocked = false;
     controls.unlock();
   }
-});
+};
 
-document.addEventListener('mozpointerlockchange', ()=>{
-  if(document.mozPointerLockElement === container) {
-    controls.lock();
-  } else {
-    controls.unlock();
-  }
-});
+document.addEventListener('pointerlockchange', handlePointerLockChange);
+document.addEventListener('mozpointerlockchange', handlePointerLockChange);
 
 // ==========================
 // Settings panel
