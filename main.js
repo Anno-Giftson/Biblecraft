@@ -156,21 +156,7 @@ window.addEventListener('resize', ()=>{
 });
 
 // ==========================
-// Fullscreen + pointer lock
-// ==========================
-container.addEventListener('click', e=>{
-  if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
-
-  // pointer lock
-  controls.lock();
-
-  // fullscreen
-  if(container.requestFullscreen) container.requestFullscreen();
-  else if(container.webkitRequestFullscreen) container.webkitRequestFullscreen();
-});
-
-// ==========================
-// Settings drop-down logic
+// Settings drop-down logic (BEFORE click listener)
 // ==========================
 const panel = document.getElementById('settings-panel');
 const button = document.getElementById('open-settings');
@@ -193,8 +179,43 @@ button.addEventListener('click', e=>{
   }
 });
 
-// Fix: Remove document click listener that closes the panel instantly
-// (on ChromeOS or school devices, clicks outside are unreliable)
+// ==========================
+// Fullscreen + pointer lock
+// ==========================
+container.addEventListener('click', e=>{
+  // Don't lock if clicking settings button or panel
+  if(e.target.id === 'open-settings' || e.target.closest('#settings-panel')) return;
+
+  // Request pointer lock FIRST
+  if(document.pointerLockElement === null) {
+    if(container.requestPointerLock) {
+      container.requestPointerLock();
+    } else if(container.mozRequestPointerLock) {
+      container.mozRequestPointerLock();
+    }
+  }
+
+  // Request fullscreen
+  if(container.requestFullscreen) container.requestFullscreen().catch(err => {});
+  else if(container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+});
+
+// Handle pointer lock change event
+document.addEventListener('pointerlockchange', () => {
+  if(document.pointerLockElement === container) {
+    controls.lock();
+  } else {
+    controls.unlock();
+  }
+});
+
+document.addEventListener('mozpointerlockchange', () => {
+  if(document.mozPointerLockElement === container) {
+    controls.lock();
+  } else {
+    controls.unlock();
+  }
+});
 
 // ==========================
 // Sensitivity + Invert Y
