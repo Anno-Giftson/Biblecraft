@@ -8,6 +8,13 @@ let velocityY = 0;
 const gravity = -0.01;
 let canJump = false;
 
+let isFlying = false;
+let flySpeed = 0.15;
+
+let spacePressedLast = 0;
+const doubleTapTime = 300;
+
+
 // ==========================
 // Collision check
 // ==========================
@@ -34,6 +41,12 @@ function checkCollision(pos) {
 // Gravity & vertical collisions
 // ==========================
 function applyGravity() {
+
+  if (isFlying) {
+    velocityY = 0;
+    return;
+  }
+
   velocityY += gravity;
   const nextPos = window.controls.getObject().position.clone();
   nextPos.y += velocityY;
@@ -106,11 +119,26 @@ const right = new THREE.Vector3();
 right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
 
-  let moveX = 0, moveZ = 0;
+  let moveX = 0, moveZ = 0, moveY = 0;
+  if (isFlying) {
+
+  if (moveForward) moveZ += flySpeed;
+  if (moveBackward) moveZ -= flySpeed;
+  if (moveRight) moveX += flySpeed;
+  if (moveLeft) moveX -= flySpeed;
+
+  if (window.keys["Space"]) moveY += flySpeed;
+  if (window.keys["ShiftLeft"]) moveY -= flySpeed;
+
+} else {
+
   if (moveForward) moveZ += speed;
   if (moveBackward) moveZ -= speed;
   if (moveRight) moveX += speed;
   if (moveLeft) moveX -= speed;
+
+}
+
 
   moveWithCollision(forward, right, moveZ, moveX);
 }
@@ -126,5 +154,20 @@ function jump() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === "Space") jump();
+  if (e.code === "Space") {
+
+    const now = Date.now();
+
+    if (now - spacePressedLast < doubleTapTime) {
+      isFlying = !isFlying;
+      velocityY = 0;
+    }
+
+    spacePressedLast = now;
+
+    if (!isFlying) {
+      jump();
+    }
+  }
 });
+
