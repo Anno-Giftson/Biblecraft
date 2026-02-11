@@ -104,7 +104,7 @@ forward.normalize();
 forward.negate();
   
 const right = new THREE.Vector3();
-right.crossVectors(new THREE.Vector3(0, 1, 0)).normalize();
+right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
 
   let moveX = 0, moveZ = 0;
