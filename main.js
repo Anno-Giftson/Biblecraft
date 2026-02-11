@@ -9,6 +9,9 @@ let invertY = false;
 let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false;
 const speed = 0.1;
 
+window.keys = {};
+
+
 // ==========================
 // Scene Setup
 // ==========================
@@ -107,14 +110,16 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
 // Movement
 // ==========================
 document.addEventListener('keydown', e=>{
+  window.keys[e.code] = true;
+
   switch(e.code){
     case "KeyW": moveForward=true; break;
     case "KeyS": moveBackward=true; break;
     case "KeyA": moveLeft=true; break;
     case "KeyD": moveRight=true; break;
-    case "Space": jump(); break;
   }
 });
+
 
 document.addEventListener('keyup', e=>{
   switch(e.code){
