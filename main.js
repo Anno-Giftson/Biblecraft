@@ -1,4 +1,5 @@
 window.blocks = [];
+window.blockMeshes = [];
 
 // ==========================
 // Variables
@@ -29,6 +30,13 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
+
+// ==========================
+// Raycaster for block interaction
+// ==========================
+const raycaster = new THREE.Raycaster();
+const interactDistance = 6;
+
 
 // ==========================
 // Lighting
@@ -94,6 +102,10 @@ window.controls = controls;
 // ==========================
 const geometry = new THREE.BoxGeometry(1,1,1);
 const material = new THREE.MeshStandardMaterial({color:0x228B22});
+
+window.blockGeometry = geometry;
+window.blockMaterial = material;
+
 const worldSize = 20;
 
 for(let x=-worldSize/2;x<worldSize/2;x++){ 
@@ -102,9 +114,11 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
     block.position.set(x,0,z);
     scene.add(block);
 
-    blocks.push(block.position.clone());
+    window.blocks.push(block.position.clone());
+    window.blockMeshes.push(block);
   }
 }
+
 
 // ==========================
 // Movement
@@ -208,3 +222,91 @@ document.getElementById('sensitivity').addEventListener('input', e=>{
 document.getElementById('invertY').addEventListener('change', e=>{
   invertY=e.target.checked;
 });
+
+// ==========================
+// Block Interaction
+// ==========================
+
+function getIntersectedBlock() {
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+
+  raycaster.set(
+    controls.getObject().position,
+    direction
+  );
+
+  const intersects = raycaster.intersectObjects(window.blockMeshes);
+
+  if (intersects.length > 0 && intersects[0].distance <= interactDistance) {
+    return intersects[0];
+  }
+
+  return null;
+}
+
+// Remove block (Left click)
+function removeBlock() {
+  const hit = getIntersectedBlock();
+  if (!hit) return;
+
+  const block = hit.object;
+
+  scene.remove(block);
+
+  // Remove from arrays
+  const meshIndex = window.blockMeshes.indexOf(block);
+  if (meshIndex > -1) {
+    window.blockMeshes.splice(meshIndex, 1);
+    window.blocks.splice(meshIndex, 1);
+  }
+}
+
+// Place block (Right click)
+function placeBlock() {
+  const hit = getIntersectedBlock();
+  if (!hit) return;
+
+  const normal = hit.face.normal.clone();
+  normal.applyMatrix3(
+    new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)
+  ).round();
+
+  const newPosition = hit.object.position.clone().add(normal);
+
+  // Prevent placing inside player
+  const playerPos = controls.getObject().position;
+  if (newPosition.distanceTo(playerPos) < 1.5) return;
+
+  const newBlock = new THREE.Mesh(
+    window.blockGeometry,
+    window.blockMaterial
+  );
+
+  newBlock.position.copy(newPosition);
+
+  scene.add(newBlock);
+
+  window.blockMeshes.push(newBlock);
+  window.blocks.push(newPosition.clone());
+}
+
+// Mouse controls
+document.addEventListener('mousedown', e => {
+
+  if (!controls.isLocked) return;
+
+  // Left click
+  if (e.button === 0) {
+    removeBlock();
+  }
+
+  // Right click
+  if (e.button === 2) {
+    placeBlock();
+  }
+
+});
+
+// Disable right-click menu
+document.addEventListener('contextmenu', e => e.preventDefault());
