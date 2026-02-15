@@ -107,11 +107,11 @@ function moveWithCollision(forwardVec, rightVec, speedZ, speedX) {
 // ==========================
 // Player physics integration
 // ==========================
-function updatePlayerPhysics() {
+window.updatePlayerPhysics = function () {
   applyGravity();
 
   const forward = new THREE.Vector3();
-camera.getWorldDirection(forward);
+window.camera.getWorldDirection(forward);
 forward.y = 0;
 forward.normalize();
   
@@ -141,6 +141,12 @@ right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
 
   moveWithCollision(forward, right, moveZ, moveX);
+
+  // Apply vertical movement when flying
+if (isFlying) {
+  window.controls.getObject().position.y += moveY;
+}
+
 }
 
 // ==========================
