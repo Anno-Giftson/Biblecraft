@@ -126,21 +126,32 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
 // ==========================
 // Movement
 // ==========================
-document.addEventListener('keydown', e=>{
+document.addEventListener('keydown', e => {
   window.keys[e.code] = true;
 
+  // Normal movement flags
   switch(e.code){
     case "KeyW": moveForward=true; break;
     case "KeyS": moveBackward=true; break;
     case "KeyA": moveLeft=true; break;
     case "KeyD": moveRight=true; break;
   }
+
+  // Double space to toggle flying
+  if(e.code === "Space") {
+    const now = Date.now();
+    if(now - spacePressedLast < doubleTapTime){
+      isFlying = !isFlying;
+      velocityY = 0;  // stop vertical momentum when toggling
+    }
+    spacePressedLast = now;
+
+    if(!isFlying) jump(); // only jump if not flying
+  }
 });
 
-
-document.addEventListener('keyup', e=>{
-
-  window.keys[e.code] = false; // <-- ADD THIS LINE
+document.addEventListener('keyup', e => {
+  window.keys[e.code] = false;
 
   switch(e.code){
     case "KeyW": moveForward=false; break;
@@ -149,6 +160,7 @@ document.addEventListener('keyup', e=>{
     case "KeyD": moveRight=false; break;
   }
 });
+
 
 
 // ==========================
