@@ -43,9 +43,10 @@ function checkCollision(pos) {
 function applyGravity() {
 
   if (isFlying) {
-    velocityY = 0;
-    return;
-  }
+  velocityY = 0;
+  canJump = false;
+  return;
+}
 
   velocityY += gravity;
   const nextPos = window.controls.getObject().position.clone();
