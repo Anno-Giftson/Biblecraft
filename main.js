@@ -7,7 +7,11 @@ window.blockMeshes = [];
 let mouseSensitivity = 0.002;
 let invertY = false;
 
-let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false;
+window.moveForward = false;
+window.moveBackward = false;
+window.moveLeft = false;
+window.moveRight = false;
+
 const speed = 0.1;
 
 window.keys = {};
