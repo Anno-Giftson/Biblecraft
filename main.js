@@ -101,7 +101,9 @@ class PointerLockControlsCustom {
 
 const controls = new PointerLockControlsCustom(camera, renderer.domElement);
 scene.add(controls.getObject());
-controls.getObject().position.set(0, 2, 5);
+controls.getObject().position.set(0, 2, 5); // x=0, y=2 above ground, z=5
+controls.pitchObject.rotation.x = -0.2;      // slight downward tilt so you see the ground
+
 window.controls = controls;
 
 // ==========================
@@ -120,6 +122,15 @@ const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2; // rotate to lay flat
 ground.position.y = 0; // ground level
 scene.add(ground);
+
+// Start cube for orientation
+const startCube = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({ color: 0xff0000 })
+);
+startCube.position.set(0.5, 0.5, 0.5); // slightly above ground
+scene.add(startCube);
+
 
 // Optional: store one "block" position for collision detection
 window.blocks.push(new THREE.Vector3(0, 0, 0));
