@@ -101,7 +101,7 @@ class PointerLockControlsCustom {
 
 const controls = new PointerLockControlsCustom(camera, renderer.domElement);
 scene.add(controls.getObject());
-controls.getObject().position.set(0, 2, 5); // 2 above ground
+controls.getObject().position.set(0, 5, 5); // 2 above ground
 controls.pitchObject.rotation.x = -0.2;    // slight downward tilt
 
 window.controls = controls;
