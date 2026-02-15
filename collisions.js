@@ -162,18 +162,18 @@ function jump() {
 document.addEventListener('keydown', e => {
   if (e.code === "Space") {
 
-    const now = Date.now();
+  const now = Date.now();
 
-    if (now - spacePressedLast < doubleTapTime) {
-      isFlying = !isFlying;
-      velocityY = 0;
-    }
-
-    spacePressedLast = now;
-
-    if (!isFlying) {
-      jump();
-    }
+  if (now - spacePressedLast < doubleTapTime) {
+    isFlying = !isFlying;
+    velocityY = 0;
+    canJump = false;
+  } else {
+    if (!isFlying) jump();
   }
+
+  spacePressedLast = now;
+}
+
 });
 
