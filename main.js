@@ -139,6 +139,9 @@ document.addEventListener('keydown', e=>{
 
 
 document.addEventListener('keyup', e=>{
+
+  window.keys[e.code] = false; // <-- ADD THIS LINE
+
   switch(e.code){
     case "KeyW": moveForward=false; break;
     case "KeyS": moveBackward=false; break;
@@ -146,6 +149,7 @@ document.addEventListener('keyup', e=>{
     case "KeyD": moveRight=false; break;
   }
 });
+
 
 // ==========================
 // Animate loop
