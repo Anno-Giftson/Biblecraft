@@ -133,23 +133,38 @@ for(let x=-worldSize/2;x<worldSize/2;x++){
 document.addEventListener('keydown', e => {
   window.keys[e.code] = true;
 
-  // Normal movement flags
+  // Movement flags
   switch(e.code){
     case "KeyW": window.moveForward = true; break;
     case "KeyS": window.moveBackward = true; break;
     case "KeyA": window.moveLeft = true; break;
     case "KeyD": window.moveRight = true; break;
   }
+
+  // Space/Shift for flying up/down
+  switch(e.code){
+    case "Space": window.keys["Space"] = true; break;
+    case "ShiftLeft": window.keys["ShiftLeft"] = true; break;
+    case "ShiftRight": window.keys["ShiftLeft"] = true; break; // optional right shift
+  }
 });
 
 document.addEventListener('keyup', e => {
   window.keys[e.code] = false;
 
+  // Movement flags
   switch(e.code){
     case "KeyW": window.moveForward = false; break;
     case "KeyS": window.moveBackward = false; break;
     case "KeyA": window.moveLeft = false; break;
     case "KeyD": window.moveRight = false; break;
+  }
+
+  // Space/Shift for flying up/down
+  switch(e.code){
+    case "Space": window.keys["Space"] = false; break;
+    case "ShiftLeft": window.keys["ShiftLeft"] = false; break;
+    case "ShiftRight": window.keys["ShiftLeft"] = false; break; // optional right shift
   }
 });
 
