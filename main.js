@@ -101,8 +101,8 @@ class PointerLockControlsCustom {
 
 const controls = new PointerLockControlsCustom(camera, renderer.domElement);
 scene.add(controls.getObject());
-controls.getObject().position.set(0, 2, 5); // x=0, y=2 above ground, z=5
-controls.pitchObject.rotation.x = -0.2;      // slight downward tilt so you see the ground
+controls.getObject().position.set(0, 2, 5); // 2 above ground
+controls.pitchObject.rotation.x = -0.2;    // slight downward tilt
 
 window.controls = controls;
 
@@ -116,12 +116,16 @@ window.blockGeometry = geometry;
 window.blockMaterial = material;
 
 const worldSize = 50; // how wide/deep the land is
-const groundGeometry = new THREE.PlaneGeometry(worldSize, worldSize);
+const groundGeometry = new THREE.BoxGeometry(worldSize, 1, worldSize); // height=1
 const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-ground.rotation.x = -Math.PI / 2; // rotate to lay flat
-ground.position.y = 0; // ground level
+ground.position.set(0, 0.5, 0); // y=0.5 so top is at y=1
 scene.add(ground);
+
+// Add to collision arrays
+window.blocks.push(new THREE.Vector3(0, 0, 0)); 
+window.blockMeshes.push(ground);
+
 
 // Optional: store one "block" position for collision detection
 window.blocks.push(new THREE.Vector3(0, 0, 0));
