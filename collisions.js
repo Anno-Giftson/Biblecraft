@@ -119,11 +119,12 @@ function updatePlayerPhysics() {
   let moveX = 0, moveY = 0, moveZ = 0;
 
   if(isFlying){
+   
     // Flying movement
-    if(moveForward) moveZ += flySpeed;
-    if(moveBackward) moveZ -= flySpeed;
-    if(moveRight) moveX += flySpeed;
-    if(moveLeft) moveX -= flySpeed;
+if(window.moveForward) moveZ += flySpeed;
+if(window.moveBackward) moveZ -= flySpeed;
+if(window.moveRight) moveX += flySpeed;
+if(window.moveLeft) moveX -= flySpeed;
 
     if(window.keys["Space"]) moveY += flySpeed;      // go up
     if(window.keys["ShiftLeft"]) moveY -= flySpeed;  // go down
@@ -136,14 +137,15 @@ function updatePlayerPhysics() {
     window.controls.getObject().position.copy(nextPos);
 
   } else {
-    // Normal walking with collisions
-    if(moveForward) moveZ += speed;
-    if(moveBackward) moveZ -= speed;
-    if(moveRight) moveX += speed;
-    if(moveLeft) moveX -= speed;
+  // Normal walking with collisions
+  if(window.moveForward) moveZ += speed;
+  if(window.moveBackward) moveZ -= speed;
+  if(window.moveRight) moveX += speed;
+  if(window.moveLeft) moveX -= speed;
 
-    moveWithCollision(forward, right, moveZ, moveX);
-  }
+  moveWithCollision(forward, right, moveZ, moveX);
+}
+
 }
 
 // ==========================
