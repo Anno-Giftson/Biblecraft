@@ -41,73 +41,47 @@ function checkCollision(pos) {
 // Gravity & vertical collisions
 // ==========================
 function applyGravity() {
-  // Apply gravity if not flying
-  if (!isFlying) {
-    velocityY += gravity;
+  if (isFlying) return; // No gravity while flying
 
-    const nextPos = window.controls.getObject().position.clone();
-    nextPos.y += velocityY;
+  velocityY += gravity;
 
-    let collided = false;
+  const nextPos = window.controls.getObject().position.clone();
+  nextPos.y += velocityY;
 
-    for (const blockPos of window.blocks) {
-      const dx = nextPos.x - blockPos.x;
-      const dz = nextPos.z - blockPos.z;
-      const dy = nextPos.y - blockPos.y;
+  let landed = false;
 
-      if (Math.abs(dx) < 0.5 + playerRadius &&
-          Math.abs(dz) < 0.5 + playerRadius) {
+  for (const blockPos of window.blocks) {
+    const dx = nextPos.x - blockPos.x;
+    const dz = nextPos.z - blockPos.z;
+    const dy = nextPos.y - blockPos.y;
 
-        // Landing on top of block
-        if (velocityY <= 0 && dy <= playerHeight && dy > 0) {
-          nextPos.y = blockPos.y + playerHeight;
-          velocityY = 0;
-          canJump = true;
-          collided = true;
-          break;
-        }
+    if (
+      Math.abs(dx) < 0.5 + playerRadius &&
+      Math.abs(dz) < 0.5 + playerRadius
+    ) {
+      // Landing on block
+      if (velocityY <= 0 && dy <= playerHeight && dy > 0) {
+        nextPos.y = blockPos.y + playerHeight;
+        velocityY = 0;
+        canJump = true;
+        landed = true;
+        break;
+      }
 
-        // Hitting head on block above
-        if (velocityY > 0 && dy <= playerHeight && dy > 0) {
-          nextPos.y = blockPos.y - 0.01;
-          velocityY = 0;
-          collided = true;
-          break;
-        }
+      // Hit head
+      if (velocityY > 0 && dy <= playerHeight && dy > 0) {
+        nextPos.y = blockPos.y - 0.01;
+        velocityY = 0;
+        break;
       }
     }
-
-    window.controls.getObject().position.y = nextPos.y;
-    if (!collided) canJump = false;
-  } else {
-    // Flying mode: no gravity, but collisions still active vertically
-    const nextPos = window.controls.getObject().position.clone();
-    nextPos.y += (window.keys["Space"] ? flySpeed : 0) - (window.keys["ShiftLeft"] ? flySpeed : 0);
-
-    // Check vertical collisions
-    for (const blockPos of window.blocks) {
-      const dx = nextPos.x - blockPos.x;
-      const dz = nextPos.z - blockPos.z;
-      const dy = nextPos.y - blockPos.y;
-
-      if (Math.abs(dx) < 0.5 + playerRadius &&
-          Math.abs(dz) < 0.5 + playerRadius) {
-
-        // Flying up into a block
-        if (dy <= playerHeight && dy > 0 && (window.keys["Space"])) {
-          nextPos.y = blockPos.y - 0.01;
-        }
-
-        // Flying down onto a block
-        if (dy <= playerHeight && dy > 0 && (window.keys["ShiftLeft"])) {
-          nextPos.y = blockPos.y + playerHeight;
-        }
-      }
-    }
-
-    window.controls.getObject().position.y = nextPos.y;
   }
+
+  if (!landed) canJump = false;
+
+  window.controls.getObject().position.y = nextPos.y;
 }
+
 
 
 // ==========================
@@ -141,66 +115,47 @@ function updatePlayerPhysics() {
   const right = new THREE.Vector3();
   right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
-  let moveX = 0, moveY = 0, moveZ = 0;
+  if (isFlying) {
 
-  
-  // Flying movement
-  
-  if(isFlying){
-    // Horizontal movement with collision
     const nextPos = window.controls.getObject().position.clone();
 
-    // Forward/back
+    // Horizontal
     const forwardStep = forward.clone().multiplyScalar(
-      (window.moveForward ? flySpeed : 0) + (window.moveBackward ? -flySpeed : 0)
+      (window.moveForward ? flySpeed : 0) +
+      (window.moveBackward ? -flySpeed : 0)
     );
 
-    // Left/right
     const rightStep = right.clone().multiplyScalar(
-      (window.moveRight ? flySpeed : 0) + (window.moveLeft ? -flySpeed : 0)
+      (window.moveRight ? flySpeed : 0) +
+      (window.moveLeft ? -flySpeed : 0)
     );
 
-    const desiredPos = nextPos.clone().add(forwardStep).add(rightStep);
+    nextPos.add(forwardStep).add(rightStep);
 
-    // Check horizontal collisions
-    if (!checkCollision(desiredPos)) nextPos.copy(desiredPos);
+    // Vertical
+    if (window.keys["Space"]) nextPos.y += flySpeed;
+    if (window.keys["ShiftLeft"]) nextPos.y -= flySpeed;
 
-    // Vertical movement
-    nextPos.y += (window.keys["Space"] ? flySpeed : 0) - (window.keys["ShiftLeft"] ? flySpeed : 0);
-
-    // Collision vertically
-    for (const blockPos of window.blocks) {
-      const dx = nextPos.x - blockPos.x;
-      const dz = nextPos.z - blockPos.z;
-      const dy = nextPos.y - blockPos.y;
-
-      if (Math.abs(dx) < 0.5 + playerRadius &&
-          Math.abs(dz) < 0.5 + playerRadius) {
-
-        if (dy <= playerHeight && dy > 0) {
-          // Flying up
-          if (window.keys["Space"] && dy <= playerHeight) nextPos.y = blockPos.y - 0.01;
-          // Flying down
-          if (window.keys["ShiftLeft"] && dy > 0) nextPos.y = blockPos.y + playerHeight;
-        }
-      }
+    // Collision check
+    if (!checkCollision(nextPos)) {
+      window.controls.getObject().position.copy(nextPos);
     }
 
-    window.controls.getObject().position.copy(nextPos);
+  } else {
+
+    let moveX = 0;
+    let moveZ = 0;
+
+    if (window.moveForward) moveZ += speed;
+    if (window.moveBackward) moveZ -= speed;
+    if (window.moveRight) moveX += speed;
+    if (window.moveLeft) moveX -= speed;
+
+    moveWithCollision(forward, right, moveZ, moveX);
+  }
 }
 
-  else {
-  // Normal walking with collisions
-  if(window.moveForward) moveZ += speed;
-  if(window.moveBackward) moveZ -= speed;
-  if(window.moveRight) moveX += speed;
-  if(window.moveLeft) moveX -= speed;
-
-  moveWithCollision(forward, right, moveZ, moveX);
-}
-
-}
-
+   
 // ==========================
 // Jump
 // ==========================
