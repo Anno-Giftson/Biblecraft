@@ -4,15 +4,18 @@
 
 const playerHeight = 1.8;
 const playerRadius = 0.3;
+
 let velocityY = 0;
 const gravity = -0.01;
+const jumpForce = 0.22;
+
 let canJump = false;
 
-let isFlying = false;
+let isFlying = false; // start walking
 let flySpeed = 0.15;
 
 let spacePressedLast = 0;
-const doubleTapTime = 400; // more forgiving double-tap
+const doubleTapTime = 400;
 
 
 // ==========================
@@ -26,13 +29,9 @@ function checkCollision(pos) {
 
     const collideX = Math.abs(dx) < 0.5 + playerRadius;
     const collideZ = Math.abs(dz) < 0.5 + playerRadius;
-
-    // Do NOT count standing on top as collision
     const collideY = dy > 0.1 && dy < playerHeight - 0.1;
 
-    if (collideX && collideZ && collideY) {
-      return true;
-    }
+    if (collideX && collideZ && collideY) return true;
   }
   return false;
 }
@@ -42,7 +41,7 @@ function checkCollision(pos) {
 // Gravity & vertical collisions
 // ==========================
 function applyGravity() {
-  if (isFlying) return; // No gravity while flying
+  if (isFlying) return; // no gravity while flying
 
   velocityY += gravity;
 
@@ -60,7 +59,7 @@ function applyGravity() {
       Math.abs(dx) < 0.5 + playerRadius &&
       Math.abs(dz) < 0.5 + playerRadius
     ) {
-      // Landing on block
+      // landing
       if (velocityY <= 0 && dy <= playerHeight && dy > 0) {
         nextPos.y = blockPos.y + playerHeight;
         velocityY = 0;
@@ -68,8 +67,7 @@ function applyGravity() {
         landed = true;
         break;
       }
-
-      // Hit head
+      // head hit
       if (velocityY > 0 && dy <= playerHeight && dy > 0) {
         nextPos.y = blockPos.y - 0.01;
         velocityY = 0;
@@ -93,11 +91,9 @@ function moveWithCollision(forwardVec, rightVec, speedZ, speedX) {
   const forwardStep = forwardVec.clone().multiplyScalar(speedZ);
   const rightStep = rightVec.clone().multiplyScalar(speedX);
 
-  // Forward/back
   const posForward = nextPos.clone().add(forwardStep);
   if (!checkCollision(posForward)) nextPos.copy(posForward);
 
-  // Left/right
   const posRight = nextPos.clone().add(rightStep);
   if (!checkCollision(posRight)) nextPos.copy(posRight);
 
@@ -115,41 +111,34 @@ function updatePlayerPhysics() {
   camera.getWorldDirection(forward);
   forward.y = 0;
   forward.normalize();
-  
+
   const right = new THREE.Vector3();
   right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
   if (isFlying) {
-
     const nextPos = window.controls.getObject().position.clone();
 
     // Horizontal
     const forwardStep = forward.clone().multiplyScalar(
-      (window.moveForward ? flySpeed : 0) +
-      (window.moveBackward ? -flySpeed : 0)
+      (window.moveForward ? flySpeed : 0) + (window.moveBackward ? -flySpeed : 0)
     );
-
     const rightStep = right.clone().multiplyScalar(
-      (window.moveRight ? flySpeed : 0) +
-      (window.moveLeft ? -flySpeed : 0)
+      (window.moveRight ? flySpeed : 0) + (window.moveLeft ? -flySpeed : 0)
     );
-
     nextPos.add(forwardStep).add(rightStep);
 
     // Vertical
     if (window.keys["Space"]) nextPos.y += flySpeed;
     if (window.keys["ShiftLeft"]) nextPos.y -= flySpeed;
 
-    // Single collision check
+    // collision
     if (!checkCollision(nextPos)) {
       window.controls.getObject().position.copy(nextPos);
     }
 
   } else {
-
-    let moveX = 0;
-    let moveZ = 0;
-
+    // walking
+    let moveX = 0, moveZ = 0;
     if (window.moveForward) moveZ += speed;
     if (window.moveBackward) moveZ -= speed;
     if (window.moveRight) moveX += speed;
@@ -164,38 +153,31 @@ function updatePlayerPhysics() {
 // Jump
 // ==========================
 function jump() {
-  if (canJump) {
-    velocityY = 0.2;
+  if (!isFlying && canJump) {
+    velocityY = jumpForce;
     canJump = false;
   }
 }
 
 
 // ==========================
-// Double Tap Space (Flying Toggle)
+// Space Key Logic (jump & flying toggle)
 // ==========================
 document.addEventListener('keydown', e => {
   if (e.code === "Space") {
-
     const now = Date.now();
 
+    // double-tap Space → toggle flying
     if (now - spacePressedLast < doubleTapTime) {
-
-      if (!isFlying) {
-        // Turn flying ON
-        isFlying = true;
-        velocityY = 0;
-        canJump = false;
-
-      } else if (canJump) {
-        // Only turn flying OFF if grounded
-        isFlying = false;
-      }
-
+      isFlying = !isFlying;
+      velocityY = 0;
+      canJump = false;
     } else {
+      // single press → jump if not flying
       if (!isFlying) jump();
     }
 
     spacePressedLast = now;
   }
 });
+
