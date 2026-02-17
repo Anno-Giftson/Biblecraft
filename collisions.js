@@ -199,28 +199,3 @@ document.addEventListener('keydown', e => {
     spacePressedLast = now;
   }
 });
-
-// ==========================
-// Space Key Logic (jump & flying toggle)
-// ==========================
-document.addEventListener('keydown', e => {
-  if (e.code === "Space") {
-    const now = Date.now();
-
-    if (now - spacePressedLast < doubleTapTime) {
-      // Double-tap detected → toggle flying
-      isFlying = !isFlying;
-      velocityY = 0;  // reset vertical speed
-      canJump = false; // prevent accidental jump
-    } else {
-      // Single press → jump only if not flying
-      if (!isFlying && canJump) {
-        velocityY = jumpForce;
-        canJump = false;
-      }
-    }
-
-    spacePressedLast = now;
-  }
-});
-
