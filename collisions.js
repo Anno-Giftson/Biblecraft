@@ -12,7 +12,7 @@ let isFlying = false;
 let flySpeed = 0.15;
 
 let spacePressedLast = 0;
-const doubleTapTime = 300;
+const doubleTapTime = 400; // more forgiving double-tap
 
 
 // ==========================
@@ -27,7 +27,7 @@ function checkCollision(pos) {
     const collideX = Math.abs(dx) < 0.5 + playerRadius;
     const collideZ = Math.abs(dz) < 0.5 + playerRadius;
 
-    // IMPORTANT: do NOT count standing on top as a collision
+    // Do NOT count standing on top as collision
     const collideY = dy > 0.1 && dy < playerHeight - 0.1;
 
     if (collideX && collideZ && collideY) {
@@ -36,6 +36,7 @@ function checkCollision(pos) {
   }
   return false;
 }
+
 
 // ==========================
 // Gravity & vertical collisions
@@ -83,7 +84,6 @@ function applyGravity() {
 }
 
 
-
 // ==========================
 // Horizontal collisions
 // ==========================
@@ -104,6 +104,10 @@ function moveWithCollision(forwardVec, rightVec, speedZ, speedX) {
   window.controls.getObject().position.copy(nextPos);
 }
 
+
+// ==========================
+// Main Physics Update
+// ==========================
 function updatePlayerPhysics() {
   applyGravity();
 
@@ -136,7 +140,7 @@ function updatePlayerPhysics() {
     if (window.keys["Space"]) nextPos.y += flySpeed;
     if (window.keys["ShiftLeft"]) nextPos.y -= flySpeed;
 
-    // Collision check
+    // Single collision check
     if (!checkCollision(nextPos)) {
       window.controls.getObject().position.copy(nextPos);
     }
@@ -155,7 +159,7 @@ function updatePlayerPhysics() {
   }
 }
 
-   
+
 // ==========================
 // Jump
 // ==========================
@@ -166,24 +170,34 @@ function jump() {
   }
 }
 
+
+// ==========================
+// Double Tap Space (Flying Toggle)
+// ==========================
 document.addEventListener('keydown', e => {
   if (e.code === "Space") {
 
-  const now = Date.now();
+    const now = Date.now();
 
- if (now - spacePressedLast < doubleTapTime) {
-  isFlying = !isFlying;
-  velocityY = 0;
-  canJump = false;
-}
+    if (now - spacePressedLast < doubleTapTime) {
 
+      if (!isFlying) {
+        // Turn flying ON
+        isFlying = true;
+        velocityY = 0;
+        canJump = false;
 
-  } else {
-    if (!isFlying) jump();
+      } else if (canJump) {
+        // Only turn flying OFF if grounded
+        isFlying = false;
+      }
+
+    } else {
+      if (!isFlying) jump();
+    }
+
+    spacePressedLast = now;
   }
-
-  spacePressedLast = now;
-}
-
 });
+
 
