@@ -1,18 +1,161 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Biblecraft</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Biblecraft - Island Prototype</title>
+<style>
+body { margin: 0; overflow: hidden; }
+#crosshair {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 10px; height: 10px;
+  margin-left: -5px; margin-top: -5px;
+  color: white;
+  font-size: 20px;
+}
+</style>
 </head>
 <body>
-  <div id="ui">
-    <p>Faith: <span id="faith">1</span></p>
-    <p>Wisdom: <span id="wisdom">1</span></p>
-    <button onclick="pray()">Pray</button>
-    <button onclick="study()">Study Scripture</button>
-  </div>
+<div id="crosshair">+</div>
 
-  <script type="module" src="main.js"></script>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+
+let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+let renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+let blocks = [];
+let keys = {};
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2(0,0);
+
+camera.position.set(0,5,10);
+
+// Lighting
+let sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(50,100,50);
+scene.add(sun);
+
+let ambient = new THREE.AmbientLight(0x404040);
+scene.add(ambient);
+
+// Day/Night
+let time = 0;
+
+// Controls
+document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+// Mouse look
+document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+document.addEventListener('click', () => document.body.requestPointerLock());
+
+document.addEventListener('mousemove', (e) => {
+  if(document.pointerLockElement === document.body){
+    camera.rotation.y -= e.movementX * 0.002;
+    camera.rotation.x -= e.movementY * 0.002;
+    camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+  }
+});
+
+// Island generation
+function createBlock(x,y,z,color){
+  let geo = new THREE.BoxGeometry();
+  let mat = new THREE.MeshStandardMaterial({color});
+  let cube = new THREE.Mesh(geo,mat);
+  cube.position.set(x,y,z);
+  scene.add(cube);
+  blocks.push(cube);
+}
+
+function generateIsland(){
+  for(let x=-20;x<20;x++){
+    for(let z=-20;z<20;z++){
+      let distance = Math.sqrt(x*x+z*z);
+      let height = Math.max(0, 6 - distance*0.4);
+      for(let y=0;y<height;y++){
+        let color = y === Math.floor(height)-1 ? 0x228B22 : 0x8B4513;
+        createBlock(x,y,z,color);
+      }
+      if(Math.random()<0.02 && height>3){
+        createTree(x,height,z);
+      }
+    }
+  }
+}
+
+function createTree(x,y,z){
+  for(let i=0;i<3;i++){
+    createBlock(x,y+i,z,0x8B4513);
+  }
+  for(let dx=-1;dx<=1;dx++){
+    for(let dz=-1;dz<=1;dz++){
+      createBlock(x+dx,y+3,z+dz,0x006400);
+    }
+  }
+}
+
+generateIsland();
+
+// Movement
+function move(){
+  let speed = 0.1;
+  let direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+
+  let right = new THREE.Vector3();
+  right.crossVectors(camera.up, direction).normalize();
+
+  if(keys['w']) camera.position.addScaledVector(direction, speed);
+  if(keys['s']) camera.position.addScaledVector(direction, -speed);
+  if(keys['a']) camera.position.addScaledVector(right, speed);
+  if(keys['d']) camera.position.addScaledVector(right, -speed);
+}
+
+// Block interaction
+window.addEventListener('mousedown', (event)=>{
+  raycaster.setFromCamera(mouse,camera);
+  let intersects = raycaster.intersectObjects(blocks);
+
+  if(intersects.length>0){
+    let hit = intersects[0];
+    if(event.button===0){ // remove
+      scene.remove(hit.object);
+      blocks.splice(blocks.indexOf(hit.object),1);
+    }
+    if(event.button===2){ // place
+      let pos = hit.object.position.clone().add(hit.face.normal);
+      createBlock(pos.x,pos.y,pos.z,0xAAAAAA);
+    }
+  }
+});
+
+// Prevent context menu
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+// Animation loop
+function animate(){
+  requestAnimationFrame(animate);
+
+  move();
+
+  // Day/Night cycle
+  time += 0.001;
+  let sunHeight = Math.sin(time)*100;
+  sun.position.set(50,sunHeight,50);
+  scene.background = new THREE.Color(
+    0.5 + 0.5*Math.sin(time),
+    0.7 + 0.3*Math.sin(time),
+    1
+  );
+
+  renderer.render(scene,camera);
+}
+
+animate();
+</script>
 </body>
 </html>
