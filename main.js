@@ -1,5 +1,5 @@
 // --------------------
-// main.js — Full Modern Minecraft Clone
+// main.js — Modern Minecraft Clone with Physics
 // --------------------
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { Noise } from './engine/noise.js';
@@ -48,7 +48,7 @@ function blockKey(x, y, z) {
 // Chunk System
 // --------------------
 const CHUNK_SIZE = 16;
-const RENDER_DISTANCE = 3; // chunks around player
+const RENDER_DISTANCE = 3;
 const loadedChunks = new Map();
 
 function chunkKey(cx, cz) {
@@ -84,7 +84,7 @@ function generateChunk(cx, cz) {
 }
 
 // --------------------
-// Player Controls
+// Player Physics
 // --------------------
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false, isSprinting = false;
@@ -189,9 +189,20 @@ document.addEventListener("mousedown", (event) => {
 window.addEventListener("contextmenu", e => e.preventDefault());
 
 // --------------------
+// Helper: Get highest Y at position
+// --------------------
+function getHighestY(x, z) {
+    let maxY = -Infinity;
+    for (let key of blocks.keys()) {
+        const [bx, by, bz] = key.split(',').map(Number);
+        if (bx === x && bz === z && by > maxY) maxY = by;
+    }
+    return maxY === -Infinity ? 0 : maxY;
+}
+
+// --------------------
 // Animation Loop
 // --------------------
-camera.position.set(0, 10, 0);
 const clock = new THREE.Clock();
 
 function animate() {
@@ -219,13 +230,24 @@ function animate() {
 
     camera.position.addScaledVector(forward, velocity.z * delta);
     camera.position.addScaledVector(right, velocity.x * delta);
-    camera.position.y += velocity.y * delta;
 
-    // Ground collision
-    if (camera.position.y < playerHeight) {
+    // --------------------
+    // Vertical collision
+    // --------------------
+    const nextY = camera.position.y + velocity.y * delta;
+    const x = Math.floor(camera.position.x);
+    const z = Math.floor(camera.position.z);
+    const keyBelow = blockKey(x, Math.floor(nextY - 0.1), z);
+
+    if (blocks.has(keyBelow)) {
+        // Landed on block
         velocity.y = 0;
-        camera.position.y = playerHeight;
+        camera.position.y = Math.floor(nextY - 0.1) + 1 + 0.01;
         canJump = true;
+    } else {
+        // Free fall
+        camera.position.y = nextY;
+        canJump = false;
     }
 
     // Camera rotation
@@ -233,7 +255,7 @@ function animate() {
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
 
-    // Load chunks around player
+    // Load chunks dynamically
     const playerChunkX = Math.floor(camera.position.x / CHUNK_SIZE);
     const playerChunkZ = Math.floor(camera.position.z / CHUNK_SIZE);
 
@@ -249,6 +271,20 @@ function animate() {
 
     renderer.render(scene, camera);
 }
+
+// --------------------
+// Spawn on top of terrain
+// --------------------
+const spawnX = 0;
+const spawnZ = 0;
+// Generate initial chunks around spawn first
+for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+    for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+        generateChunk(dx, dz);
+    }
+}
+const spawnY = getHighestY(spawnX, spawnZ) + 2;
+camera.position.set(spawnX, spawnY, spawnZ);
 
 animate();
 
