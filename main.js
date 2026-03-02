@@ -1,4 +1,10 @@
+// --------------------
+// main.js — Full Modern Minecraft Clone
+// --------------------
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { Noise } from './engine/noise.js';
+
+const noise = new Noise();
 
 // --------------------
 // Scene & Camera
@@ -25,6 +31,12 @@ const ambient = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambient);
 
 // --------------------
+// Materials
+// --------------------
+const grassMaterial = new THREE.MeshStandardMaterial({ color: 0x3cb043 });
+const dirtMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+
+// --------------------
 // Block System
 // --------------------
 const blocks = new Map(); // key = "x,y,z" value = mesh
@@ -33,36 +45,46 @@ function blockKey(x, y, z) {
 }
 
 // --------------------
-// Terrain
+// Chunk System
 // --------------------
-const blockSize = 1;
-const worldSize = 50;
-const grassMaterial = new THREE.MeshStandardMaterial({ color: 0x3cb043 });
-const dirtMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+const CHUNK_SIZE = 16;
+const RENDER_DISTANCE = 3; // chunks around player
+const loadedChunks = new Map();
 
-function generateTerrain() {
-    const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+function chunkKey(cx, cz) {
+    return `${cx},${cz}`;
+}
 
-    for (let x = -worldSize; x < worldSize; x++) {
-        for (let z = -worldSize; z < worldSize; z++) {
-            const height = Math.floor(5 * Math.sin(x * 0.1) * Math.cos(z * 0.1));
+function generateChunk(cx, cz) {
+    const geometry = new THREE.BoxGeometry(1,1,1);
+    const chunkBlocks = new Map();
+
+    for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+            const worldX = cx * CHUNK_SIZE + x;
+            const worldZ = cz * CHUNK_SIZE + z;
+
+            const height = Math.floor(noise.perlin(worldX * 0.1, worldZ * 0.1) * 10);
+
             for (let y = 0; y <= height; y++) {
                 const material = y === height ? grassMaterial : dirtMaterial;
                 const cube = new THREE.Mesh(geometry, material);
-                cube.position.set(x, y, z);
+                cube.position.set(worldX, y, worldZ);
                 cube.castShadow = true;
                 cube.receiveShadow = true;
                 scene.add(cube);
-                blocks.set(blockKey(x, y, z), cube);
+                const key = blockKey(worldX, y, worldZ);
+                blocks.set(key, cube);
+                chunkBlocks.set(key, cube);
             }
         }
     }
+
+    loadedChunks.set(chunkKey(cx, cz), chunkBlocks);
 }
 
-generateTerrain();
-
 // --------------------
-// Controls
+// Player Controls
 // --------------------
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false, isSprinting = false;
@@ -82,7 +104,8 @@ const playerHeight = 1.8;
 // --------------------
 document.body.addEventListener("click", () => {
     document.body.requestPointerLock();
-    document.getElementById("instructions").style.display = "none";
+    const instructions = document.getElementById("instructions");
+    if (instructions) instructions.style.display = "none";
 });
 
 document.addEventListener("mousemove", (event) => {
@@ -102,7 +125,7 @@ document.addEventListener("keydown", (event) => {
         case "KeyS": moveBackward = true; break;
         case "KeyA": moveLeft = true; break;
         case "KeyD": moveRight = true; break;
-        case "Space": if (canJump) velocity.y += 8; canJump = false; break;
+        case "Space": if (canJump) { velocity.y += 8; canJump = false; } break;
         case "ShiftLeft": isSprinting = true; break;
     }
 });
@@ -118,7 +141,7 @@ document.addEventListener("keyup", (event) => {
 });
 
 // --------------------
-// Raycasting for Blocks
+// Block Interaction
 // --------------------
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2(0, 0);
@@ -176,10 +199,12 @@ function animate() {
 
     const delta = clock.getDelta();
 
+    // Movement damping
     velocity.x -= velocity.x * 10.0 * delta;
     velocity.z -= velocity.z * 10.0 * delta;
     velocity.y -= gravity * delta;
 
+    // Direction
     direction.z = Number(moveForward) - Number(moveBackward);
     direction.x = Number(moveRight) - Number(moveLeft);
     direction.normalize();
@@ -188,6 +213,7 @@ function animate() {
     if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
     if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
 
+    // Movement vectors
     const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right = new THREE.Vector3(Math.sin(yaw - Math.PI/2), 0, Math.cos(yaw - Math.PI/2));
 
@@ -195,15 +221,31 @@ function animate() {
     camera.position.addScaledVector(right, velocity.x * delta);
     camera.position.y += velocity.y * delta;
 
+    // Ground collision
     if (camera.position.y < playerHeight) {
         velocity.y = 0;
         camera.position.y = playerHeight;
         canJump = true;
     }
 
+    // Camera rotation
     camera.rotation.order = "YXZ";
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
+
+    // Load chunks around player
+    const playerChunkX = Math.floor(camera.position.x / CHUNK_SIZE);
+    const playerChunkZ = Math.floor(camera.position.z / CHUNK_SIZE);
+
+    for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+        for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+            const cx = playerChunkX + dx;
+            const cz = playerChunkZ + dz;
+            if (!loadedChunks.has(chunkKey(cx, cz))) {
+                generateChunk(cx, cz);
+            }
+        }
+    }
 
     renderer.render(scene, camera);
 }
@@ -211,7 +253,7 @@ function animate() {
 animate();
 
 // --------------------
-// Resize
+// Window Resize
 // --------------------
 window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
