@@ -1,1 +1,25 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    font-family: Arial, sans-serif;
+}
 
+#crosshair {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 24px;
+    pointer-events: none;
+}
+
+#instructions {
+    position: fixed;
+    top: 40%;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-size: 18px;
+}
