@@ -2,23 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft Clone</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bible Craft: Covenant Engine</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
 </head>
 <body>
-    <div id="crosshair">+</div>
-    <div id="instructions">
-        Click to Play<br>
-        WASD - Move<br>
-        Shift - Sprint<br>
-        Space - Jump<br>
-        Mouse - Look<br>
-        Left Click - Break Block<br>
-        Right Click - Place Block
+    <div id="ui-layer">
+        <div id="hud-top">
+            <div class="stat-cluster">
+                <div class="bar-container"><div class="bar-label">HEALTH</div><div id="bar-hp" class="bar-fill"></div></div>
+                <div class="bar-container"><div class="bar-label">MANNA</div><div id="bar-manna" class="bar-fill"></div></div>
+            </div>
+            <div id="coord-display">X:0 Y:0 Z:0</div>
+        </div>
+        <div id="notification-area"><div id="msg-text" class="notify-msg"></div></div>
+        <div id="crosshair"></div>
+        <div id="hotbar-container"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <div id="start-screen" class="screen-overlay">
+        <h1>BIBLE CRAFT</h1>
+        <button id="btn-start" class="menu-btn">NEW JOURNEY</button>
+        <p style="color: #888; margin-top: 20px;">WASD: Move | SPACE: Jump | Click: Mine | Right Click: Build</p>
+    </div>
+
     <script type="module" src="main.js"></script>
 </body>
 </html>
