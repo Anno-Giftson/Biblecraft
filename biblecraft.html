@@ -2,39 +2,62 @@
 <html>
 <head>
 <meta charset="UTF-8">
+
 <title>Biblecraft</title>
+
+<link rel="icon" type="image/png" href="favicon.png">
+
 <style>
-body { margin:0; overflow:hidden; font-family:sans-serif; }
+
+body{
+margin:0;
+overflow:hidden;
+font-family:Arial;
+background:black;
+}
+
 #ui{
 position:fixed;
 top:10px;
 left:10px;
 color:white;
-background:rgba(0,0,0,0.5);
+background:rgba(0,0,0,.5);
 padding:10px;
 border-radius:6px;
 }
-#inventory{
+
+#hotbar{
 position:fixed;
-bottom:10px;
+bottom:20px;
 left:50%;
 transform:translateX(-50%);
-background:rgba(0,0,0,0.7);
-padding:10px;
+display:flex;
+gap:8px;
+}
+
+.slot{
+width:60px;
+height:60px;
+background:rgba(0,0,0,.7);
 color:white;
 display:flex;
-gap:10px;
+align-items:center;
+justify-content:center;
+border:2px solid #555;
+font-size:12px;
 }
+
 #quests{
 position:fixed;
 right:10px;
 top:10px;
-width:220px;
-background:rgba(0,0,0,0.6);
+width:240px;
+background:rgba(0,0,0,.6);
 color:white;
 padding:10px;
+border-radius:6px;
 }
-button{cursor:pointer;}
+
 </style>
 </head>
 
@@ -42,74 +65,81 @@ button{cursor:pointer;}
 
 <div id="ui">
 <b>Biblecraft</b><br>
-WASD move | Mouse look<br>
-Left click: mine<br>
-Right click: place<br>
-E: crafting
+WASD move<br>
+Left click mine<br>
+Right click place<br>
+E craft altar<br>
 </div>
-
-<div id="inventory"></div>
 
 <div id="quests">
 <b>Bible Quests</b>
 <ul id="questList"></ul>
 </div>
 
+<div id="hotbar"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 
 <script>
 
-// BASIC ENGINE
+// ENGINE
 
-let scene = new THREE.Scene()
+let scene=new THREE.Scene()
 
-let camera = new THREE.PerspectiveCamera(
+let camera=new THREE.PerspectiveCamera(
 75,
 window.innerWidth/window.innerHeight,
 0.1,
 1000
 )
 
-let renderer = new THREE.WebGLRenderer()
+let renderer=new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth,window.innerHeight)
+
 document.body.appendChild(renderer.domElement)
 
-let light = new THREE.DirectionalLight(0xffffff,1)
-light.position.set(50,100,50)
-scene.add(light)
 
-scene.add(new THREE.AmbientLight(0xaaaaaa))
+// LIGHT
+
+let sun=new THREE.DirectionalLight(0xffffff,1)
+sun.position.set(100,200,100)
+scene.add(sun)
+
+scene.add(new THREE.AmbientLight(0x888888))
 
 // PLAYER
 
-camera.position.y=5
+camera.position.set(0,6,5)
 
-let velocity={x:0,z:0}
 let keys={}
 
 document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true)
 document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false)
 
+
 // BLOCK TYPES
 
 const BLOCKS={
-grass:{color:0x55aa33},
-dirt:{color:0x8b4513},
-stone:{color:0x888888},
-wood:{color:0x8B5A2B},
-altar:{color:0xffffcc}
+grass:0x55aa33,
+dirt:0x8b4513,
+stone:0x888888,
+wood:0x8b5a2b,
+leaves:0x228833,
+altar:0xffffcc
 }
+
+// WORLD STORAGE
 
 let world=[]
 
-// CREATE BLOCK
+// BLOCK CREATOR
 
 function createBlock(x,y,z,type){
 
 let geo=new THREE.BoxGeometry(1,1,1)
 
 let mat=new THREE.MeshLambertMaterial({
-color:BLOCKS[type].color
+color:BLOCKS[type]
 })
 
 let mesh=new THREE.Mesh(geo,mat)
@@ -124,26 +154,47 @@ world.push(mesh)
 
 }
 
-// TERRAIN GENERATION
+// TERRAIN
+
+function terrainHeight(x,z){
+
+return Math.floor(
+Math.sin(x*0.2)*3+
+Math.cos(z*0.2)*3+4
+)
+
+}
 
 function generateWorld(){
 
-for(let x=-20;x<20;x++){
+for(let x=-30;x<30;x++){
 
-for(let z=-20;z<20;z++){
+for(let z=-30;z<30;z++){
 
-let height=Math.floor(
-Math.sin(x*0.3)*2+
-Math.cos(z*0.3)*2+2
-)
+let h=terrainHeight(x,z)
 
-for(let y=0;y<height;y++){
+for(let y=0;y<h;y++){
 
 let type="dirt"
 
-if(y==height-1) type="grass"
+if(y==h-1) type="grass"
 
 createBlock(x,y,z,type)
+
+}
+
+// trees
+
+if(Math.random()<0.05){
+
+let th=h
+
+for(let i=0;i<4;i++)
+createBlock(x,th+i,z,"wood")
+
+for(let lx=-2;lx<=2;lx++)
+for(let lz=-2;lz<=2;lz++)
+createBlock(x+lx,th+4,z+lz,"leaves")
 
 }
 
@@ -155,50 +206,51 @@ createBlock(x,y,z,type)
 
 generateWorld()
 
+
 // INVENTORY
 
 let inventory={
 wood:0,
 stone:0,
+dirt:0,
 altar:0
 }
 
-function updateInventory(){
+function updateHotbar(){
 
-let div=document.getElementById("inventory")
+let bar=document.getElementById("hotbar")
 
-div.innerHTML=""
+bar.innerHTML=""
 
 for(let item in inventory){
 
-let el=document.createElement("div")
+let div=document.createElement("div")
+div.className="slot"
 
-el.innerText=item+":"+inventory[item]
+div.innerText=item+"\n"+inventory[item]
 
-div.appendChild(el)
+bar.appendChild(div)
 
 }
 
 }
 
-updateInventory()
+updateHotbar()
 
-// MINING
+
+// MINING / BUILDING
 
 document.addEventListener("mousedown",e=>{
 
-let raycaster=new THREE.Raycaster()
+let ray=new THREE.Raycaster()
 
-raycaster.setFromCamera(
-new THREE.Vector2(0,0),
-camera
-)
+ray.setFromCamera(new THREE.Vector2(0,0),camera)
 
-let hits=raycaster.intersectObjects(world)
+let hit=ray.intersectObjects(world)
 
-if(hits.length){
+if(hit.length){
 
-let block=hits[0].object
+let block=hit[0].object
 
 if(e.button==0){
 
@@ -207,15 +259,16 @@ scene.remove(block)
 world.splice(world.indexOf(block),1)
 
 inventory[block.userData.type]++
-updateInventory()
+
+updateHotbar()
 
 }
 
 if(e.button==2){
 
-let p=hits[0].point.clone()
+let p=hit[0].point.clone()
 
-p.add(hits[0].face.normal)
+p.add(hit[0].face.normal)
 
 createBlock(
 Math.round(p.x),
@@ -230,20 +283,21 @@ Math.round(p.z),
 
 })
 
+
 // CRAFTING
 
 document.addEventListener("keydown",e=>{
 
 if(e.key=="e"){
 
-if(inventory.stone>=4){
+if(inventory.stone>=6){
 
-inventory.stone-=4
+inventory.stone-=6
 inventory.altar++
 
-alert("Crafted Altar!")
+alert("You crafted an Altar!")
 
-updateInventory()
+updateHotbar()
 
 }
 
@@ -251,7 +305,8 @@ updateInventory()
 
 })
 
-// WOLF PETS
+
+// WOLVES
 
 let wolves=[]
 
@@ -263,7 +318,7 @@ let mat=new THREE.MeshLambertMaterial({color:0xffffff})
 
 let wolf=new THREE.Mesh(geo,mat)
 
-wolf.position.set(x,3,z)
+wolf.position.set(x,5,z)
 
 wolf.userData.tamed=false
 
@@ -273,19 +328,20 @@ wolves.push(wolf)
 
 }
 
-spawnWolf(5,5)
-spawnWolf(-4,-3)
+spawnWolf(4,4)
+spawnWolf(-5,-3)
 
 document.addEventListener("click",()=>{
 
 wolves.forEach(w=>{
 
-let dist=camera.position.distanceTo(w.position)
+let d=camera.position.distanceTo(w.position)
 
-if(dist<3 && !w.userData.tamed){
+if(d<3 && !w.userData.tamed){
 
 w.userData.tamed=true
-alert("Wolf tamed!")
+
+alert("Wolf is now your pet!")
 
 }
 
@@ -293,19 +349,50 @@ alert("Wolf tamed!")
 
 })
 
-// QUESTS
+
+// PET FOLLOW
+
+function updateWolves(){
+
+wolves.forEach(w=>{
+
+if(w.userData.tamed){
+
+let dir=camera.position.clone().sub(w.position)
+
+dir.multiplyScalar(.02)
+
+w.position.add(dir)
+
+}
+
+})
+
+}
+
+
+// QUEST SYSTEM
 
 let quests=[
+
 {
 text:"Collect 10 wood",
 done:false,
 check:()=>inventory.wood>=10
 },
+
 {
 text:"Build an altar",
 done:false,
 check:()=>inventory.altar>=1
+},
+
+{
+text:"Tame a wolf",
+done:false,
+check:()=>wolves.some(w=>w.userData.tamed)
 }
+
 ]
 
 function updateQuests(){
@@ -319,13 +406,11 @@ quests.forEach(q=>{
 if(!q.done && q.check()){
 
 q.done=true
-
 alert("Quest Complete: "+q.text)
 
 }
 
 let li=document.createElement("li")
-
 li.innerText=(q.done?"✓ ":"")+q.text
 
 list.appendChild(li)
@@ -336,24 +421,59 @@ list.appendChild(li)
 
 setInterval(updateQuests,1000)
 
+
+// DAY NIGHT
+
+let time=0
+
+function updateDayNight(){
+
+time+=0.001
+
+let c=(Math.sin(time)+1)/2
+
+renderer.setClearColor(
+new THREE.Color(c*0.5,c*0.7,1)
+)
+
+}
+
+
 // MOVEMENT
 
 function updatePlayer(){
 
-if(keys["w"]) camera.position.z-=0.1
-if(keys["s"]) camera.position.z+=0.1
-if(keys["a"]) camera.position.x-=0.1
-if(keys["d"]) camera.position.x+=0.1
+if(keys["w"]) camera.position.z-=0.15
+if(keys["s"]) camera.position.z+=0.15
+if(keys["a"]) camera.position.x-=0.15
+if(keys["d"]) camera.position.x+=0.15
 
 }
 
-// GAME LOOP
+
+// SAVE SYSTEM
+
+function saveGame(){
+
+localStorage.setItem(
+"biblecraft_inventory",
+JSON.stringify(inventory)
+)
+
+}
+
+setInterval(saveGame,5000)
+
+
+// LOOP
 
 function animate(){
 
 requestAnimationFrame(animate)
 
 updatePlayer()
+updateWolves()
+updateDayNight()
 
 renderer.render(scene,camera)
 
