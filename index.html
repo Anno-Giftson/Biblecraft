@@ -3,614 +3,392 @@
 <head>
 <meta charset="UTF-8">
 <title>Biblecraft</title>
-<link rel="icon" href="favicon.png">
+
 <style>
-body { margin:0; overflow:hidden; font-family:Arial; background:black; }
-#ui { position:fixed; top:10px; left:10px; background:rgba(0,0,0,0.5); color:white; padding:10px; border-radius:8px; }
-#ui b { font-size:1.2em; }
-#inventory { position:fixed; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
-.slot { width:70px; height:50px; background:rgba(0,0,0,0.7); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:12px; }
-#quests { position:fixed; right:10px; top:10px; background:rgba(0,0,0,0.6); color:white; padding:10px; width:240px; border-radius:8px; }
-canvas { display:block; }
+body{
+margin:0;
+overflow:hidden;
+font-family:Arial;
+background:black;
+}
+
+#ui{
+position:fixed;
+top:10px;
+left:10px;
+color:white;
+background:rgba(0,0,0,0.6);
+padding:10px;
+border-radius:8px;
+}
+
+#inventory{
+position:fixed;
+bottom:10px;
+left:50%;
+transform:translateX(-50%);
+display:flex;
+gap:6px;
+}
+
+.slot{
+width:70px;
+height:50px;
+background:rgba(0,0,0,0.7);
+color:white;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+font-size:12px;
+}
+
+canvas{display:block;}
 </style>
 </head>
+
 <body>
-<div id="ui"><b>Biblecraft</b><br>WASD Move | Mouse Look | Left Click Mine | Right Click Place | E Craft Altar</div>
+
+<div id="ui">
+<b>Biblecraft</b><br>
+WASD Move<br>
+Mouse Look<br>
+Left Click Mine<br>
+Right Click Place
+</div>
+
 <div id="inventory"></div>
-<div id="quests"><b>Bible Quests</b><ul id="questList"></ul></div>
-<canvas id="game"></canvas>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
 <script>
-// ===============================
-// Section 1: Core Engine
-// ===============================
 
-// Renderer
-const canvas = document.getElementById("game");
-const renderer = new THREE.WebGLRenderer({canvas});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+/* =========================
+CORE ENGINE
+========================= */
 
-// Scene & Light
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB); // Sky blue
-const ambient = new THREE.AmbientLight(0x888888);
-scene.add(ambient);
-const sun = new THREE.DirectionalLight(0xffffff,1.0);
-sun.position.set(100,200,100);
-scene.add(sun);
+const scene = new THREE.Scene()
 
-// Camera (first-person)
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0,10,0);
+const renderer = new THREE.WebGLRenderer({antialias:true})
+renderer.setSize(window.innerWidth,window.innerHeight)
+document.body.appendChild(renderer.domElement)
 
-// Resize handler
-window.addEventListener('resize',()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+const camera = new THREE.PerspectiveCamera(
+75,
+window.innerWidth/window.innerHeight,
+0.1,
+1000
+)
 
-// ===============================
-// Section 1a: Procedural World
-// ===============================
+/* =========================
+LIGHTING
+========================= */
 
-const CHUNK_SIZE = 16;
-const RENDER_DISTANCE = 3; // in chunks
-const BLOCK_SIZE = 1;
+const ambient = new THREE.AmbientLight(0xffffff,.4)
+scene.add(ambient)
 
-const BLOCKS = {
-  air:0, grass:1, dirt:2, stone:3, wood:4, leaves:5, altar:6
-};
-const COLORS = {
-  1:0x55aa33,2:0x8b4513,3:0x888888,4:0x8B5A2B,5:0x228833,6:0xffffcc
-};
+const sun = new THREE.DirectionalLight(0xffffff,1)
+sun.position.set(100,200,100)
+scene.add(sun)
 
-let chunks = new Map(); // key: "cx,cz", value: THREE.Group()
+/* =========================
+TEXTURES
+========================= */
 
-function getChunkKey(cx, cz){ return cx+","+cz; }
+const loader = new THREE.TextureLoader()
 
-// Simple height map function
-function getHeight(x,z){
-  return Math.floor(Math.sin(x*0.2)*3 + Math.cos(z*0.2)*3 + 5);
+const textures = {
+grass: loader.load("https://threejs.org/examples/textures/terrain/grasslight-big.jpg"),
+dirt: loader.load("https://threejs.org/examples/textures/terrain/grasslight-big.jpg"),
+stone: loader.load("https://threejs.org/examples/textures/terrain/grasslight-big.jpg"),
+wood: loader.load("https://threejs.org/examples/textures/hardwood2_diffuse.jpg")
 }
 
-// Create a block mesh
-function createBlock(x,y,z,type){
-  const geo = new THREE.BoxGeometry(BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);
-  const mat = new THREE.MeshLambertMaterial({color:COLORS[type]});
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-  mesh.userData.type = type;
-  return mesh;
+for(let t in textures){
+textures[t].wrapS = textures[t].wrapT = THREE.RepeatWrapping
+textures[t].repeat.set(.5,.5)
 }
 
-// Generate a chunk at (cx,cz)
-function generateChunk(cx,cz){
-  const group = new THREE.Group();
-  for(let x=0;x<CHUNK_SIZE;x++){
-    for(let z=0;z<CHUNK_SIZE;z++){
-      const worldX = cx*CHUNK_SIZE + x;
-      const worldZ = cz*CHUNK_SIZE + z;
-      const h = getHeight(worldX, worldZ);
-      for(let y=0;y<=h;y++){
-        let type = y==h ? BLOCKS.grass : (y>h-3 ? BLOCKS.dirt : BLOCKS.stone);
-        const block = createBlock(worldX,y,worldZ,type);
-        group.add(block);
-      }
-      // Random small tree
-      if(Math.random()<0.05){
-        const hTree = h+1;
-        for(let i=0;i<3;i++){
-          group.add(createBlock(worldX,hTree+i,worldZ,BLOCKS.wood));
-        }
-        for(let lx=-1;lx<=1;lx++){
-          for(let ly=0;ly<=1;ly++){
-            for(let lz=-1;lz<=1;lz++){
-              if(Math.abs(lx)+Math.abs(ly)+Math.abs(lz)>1) continue;
-              group.add(createBlock(worldX+lx,hTree+2+ly,worldZ+lz,BLOCKS.leaves));
-            }
-          }
-        }
-      }
-    }
-  }
-  scene.add(group);
-  chunks.set(getChunkKey(cx,cz), group);
+/* =========================
+WORLD
+========================= */
+
+const blocks=[]
+const blockSize=1
+
+function height(x,z){
+return Math.floor(
+Math.sin(x*.2)*3+
+Math.cos(z*.2)*3+
+6
+)
 }
 
-// Load chunks around player
-function updateChunks(px,pz){
-  const currentChunkX = Math.floor(px/CHUNK_SIZE);
-  const currentChunkZ = Math.floor(pz/CHUNK_SIZE);
-  for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++){
-    for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){
-      const key = getChunkKey(currentChunkX+dx, currentChunkZ+dz);
-      if(!chunks.has(key)){
-        generateChunk(currentChunkX+dx,currentChunkZ+dz);
-      }
-    }
-  }
+function block(x,y,z,type){
+
+const mat=new THREE.MeshLambertMaterial({
+map:textures[type]
+})
+
+const geo=new THREE.BoxGeometry(1,1,1)
+
+const mesh=new THREE.Mesh(geo,mat)
+
+mesh.position.set(x+.5,y+.5,z+.5)
+
+mesh.userData={type,x,y,z}
+
+scene.add(mesh)
+
+blocks.push(mesh)
 }
 
-// ===============================
-// Section 1b: Player Movement
-// ===============================
+function generateWorld(){
 
-let velocity = new THREE.Vector3();
-const speed = 5;
-const keysPressed = {};
-document.addEventListener("keydown", e => keysPressed[e.key.toLowerCase()]=true);
-document.addEventListener("keyup", e => keysPressed[e.key.toLowerCase()]=false);
+for(let x=-40;x<40;x++){
 
-// Pointer lock controls for mouse look
-let controlsEnabled = false;
-canvas.addEventListener("click",()=>{
-  canvas.requestPointerLock();
-});
-document.addEventListener("pointerlockchange",()=>{
-  controlsEnabled = document.pointerLockElement===canvas;
-});
+for(let z=-40;z<40;z++){
 
-let pitchObject = new THREE.Object3D();
-pitchObject.add(camera);
-let yawObject = new THREE.Object3D();
-yawObject.position.y = 10;
-yawObject.add(pitchObject);
-scene.add(yawObject);
+const h=height(x,z)
 
-let prevTime = performance.now();
-let velocityVector = new THREE.Vector3();
+for(let y=0;y<=h;y++){
 
-// Mouse look
-let moveX=0, moveY=0;
-document.addEventListener("mousemove", e=>{
-  if(!controlsEnabled) return;
-  const sensitivity = 0.002;
-  yawObject.rotation.y -= e.movementX * sensitivity;
-  pitchObject.rotation.x -= e.movementY * sensitivity;
-  pitchObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitchObject.rotation.x));
-});
+let type="stone"
 
-// ===============================
-// Section 1c: Animation Loop
-// ===============================
+if(y==h) type="grass"
+else if(y>h-3) type="dirt"
+
+block(x,y,z,type)
+
+}
+
+}
+
+}
+
+}
+
+generateWorld()
+
+/* =========================
+PLAYER
+========================= */
+
+const player = new THREE.Object3D()
+
+player.position.set(0,20,0)
+
+scene.add(player)
+
+player.add(camera)
+
+let pitch=0
+let yaw=0
+
+document.body.onclick=()=>{
+document.body.requestPointerLock()
+}
+
+document.addEventListener("mousemove",e=>{
+
+if(document.pointerLockElement){
+
+yaw-=e.movementX*0.002
+pitch-=e.movementY*0.002
+
+pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch))
+
+player.rotation.y=yaw
+camera.rotation.x=pitch
+
+}
+
+})
+
+/* =========================
+MOVEMENT
+========================= */
+
+const keys={}
+
+document.addEventListener("keydown",e=>keys[e.key]=true)
+document.addEventListener("keyup",e=>keys[e.key]=false)
+
+let velocityY=0
+
+function move(dt){
+
+const speed=6
+
+const dir=new THREE.Vector3()
+
+if(keys["w"]) dir.z-=1
+if(keys["s"]) dir.z+=1
+if(keys["a"]) dir.x-=1
+if(keys["d"]) dir.x+=1
+
+dir.normalize()
+
+dir.applyAxisAngle(
+new THREE.Vector3(0,1,0),
+player.rotation.y
+)
+
+player.position.x+=dir.x*speed*dt
+player.position.z+=dir.z*speed*dt
+
+/* gravity */
+
+velocityY-=20*dt
+player.position.y+=velocityY*dt
+
+const ground=height(
+Math.floor(player.position.x),
+Math.floor(player.position.z)
+)+2
+
+if(player.position.y<ground){
+
+player.position.y=ground
+velocityY=0
+
+}
+
+}
+
+/* =========================
+MINING
+========================= */
+
+const raycaster=new THREE.Raycaster()
+
+document.addEventListener("mousedown",e=>{
+
+raycaster.setFromCamera(
+new THREE.Vector2(0,0),
+camera
+)
+
+const hits=raycaster.intersectObjects(blocks)
+
+if(hits.length==0) return
+
+const block=hits[0].object
+
+if(e.button==0){
+
+scene.remove(block)
+
+const i=blocks.indexOf(block)
+
+if(i>-1) blocks.splice(i,1)
+
+}
+
+})
+
+/* =========================
+WOLVES
+========================= */
+
+const wolves=[]
+
+function spawnWolf(x,z){
+
+const geo=new THREE.BoxGeometry(.8,.8,.8)
+
+const mat=new THREE.MeshStandardMaterial({color:0xaaaaaa})
+
+const wolf=new THREE.Mesh(geo,mat)
+
+wolf.position.set(x,height(x,z)+1,z)
+
+scene.add(wolf)
+
+wolves.push(wolf)
+
+}
+
+spawnWolf(5,5)
+spawnWolf(-8,4)
+spawnWolf(10,-6)
+
+/* =========================
+WOLF AI
+========================= */
+
+function updateWolves(dt){
+
+wolves.forEach(w=>{
+
+const d=new THREE.Vector3()
+
+d.subVectors(player.position,w.position)
+
+if(d.length()>2){
+
+d.normalize()
+
+w.position.x+=d.x*dt*2
+w.position.z+=d.z*dt*2
+
+}
+
+})
+
+}
+
+/* =========================
+DAY NIGHT
+========================= */
+
+let time=0
+
+function updateDay(dt){
+
+time+=dt*.05
+
+const sunHeight=Math.sin(time)
+
+sun.position.y=200*sunHeight
+
+sun.intensity=Math.max(.2,sunHeight)
+
+scene.background=new THREE.Color().setHSL(
+.6,.6,
+sunHeight*.5+.2
+)
+
+}
+
+/* =========================
+LOOP
+========================= */
+
+let last=performance.now()
 
 function animate(){
-  requestAnimationFrame(animate);
-  const time = performance.now();
-  const delta = (time-prevTime)/1000;
-  prevTime = time;
 
-  // Movement
-  velocityVector.set(0,0,0);
-  if(keysPressed['w']) velocityVector.z -= speed*delta;
-  if(keysPressed['s']) velocityVector.z += speed*delta;
-  if(keysPressed['a']) velocityVector.x -= speed*delta;
-  if(keysPressed['d']) velocityVector.x += speed*delta;
+requestAnimationFrame(animate)
 
-  // Apply rotation
-  const euler = new THREE.Euler(0,yawObject.rotation.y,0,'YXZ');
-  velocityVector.applyEuler(euler);
-  yawObject.position.add(velocityVector);
+const now=performance.now()
 
-  // Update chunks around player
-  updateChunks(yawObject.position.x, yawObject.position.z);
+const dt=(now-last)/1000
 
-  renderer.render(scene,camera);
+last=now
+
+move(dt)
+
+updateWolves(dt)
+
+updateDay(dt)
+
+renderer.render(scene,camera)
+
 }
-animate();
-</script>
 
-/* ===============================
-Section 2: Mining / Placing / Inventory
-=============================== */
-<script>
-// Inventory
-let inventory = {
-  wood: 0,
-  stone: 0,
-  dirt: 0,
-  altar: 0
-};
-
-// Hotbar UI
-const inventoryDiv = document.getElementById("inventory");
-function updateInventoryUI(){
-  inventoryDiv.innerHTML = "";
-  for(let item in inventory){
-    const slot = document.createElement("div");
-    slot.className = "slot";
-    slot.innerText = item + "\n" + inventory[item];
-    inventoryDiv.appendChild(slot);
-  }
-}
-updateInventoryUI();
-
-// Raycaster for block interaction
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2(0,0);
-
-// Mining (Left click) & Placing (Right click)
-document.addEventListener("mousedown", e => {
-  if(!controlsEnabled) return;
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(Array.from(chunks.values()).flatMap(c => c.children));
-  if(intersects.length === 0) return;
-  const block = intersects[0].object;
-  if(e.button === 0){ // Left click -> mine
-    const type = block.userData.type;
-    if(type === BLOCKS.wood) inventory.wood++;
-    if(type === BLOCKS.stone) inventory.stone++;
-    if(type === BLOCKS.dirt) inventory.dirt++;
-    // Remove block
-    block.parent.remove(block);
-    updateInventoryUI();
-  } else if(e.button === 2){ // Right click -> place
-    // Determine position next to face
-    const pos = intersects[0].point.clone().add(intersects[0].face.normal);
-    const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
-    let blockType = BLOCKS.stone; // default block for placing
-    if(inventory.stone > 0) {
-      blockType = BLOCKS.stone;
-      inventory.stone--;
-    } else if(inventory.dirt > 0){
-      blockType = BLOCKS.dirt;
-      inventory.dirt--;
-    } else if(inventory.wood > 0){
-      blockType = BLOCKS.wood;
-      inventory.wood--;
-    } else return; // nothing to place
-    const newBlock = createBlock(x, y, z, blockType);
-    const chunkX = Math.floor(x/CHUNK_SIZE);
-    const chunkZ = Math.floor(z/CHUNK_SIZE);
-    const key = getChunkKey(chunkX, chunkZ);
-    if(chunks.has(key)){
-      chunks.get(key).add(newBlock);
-    }
-    updateInventoryUI();
-  }
-});
-
-// Prevent context menu on right-click
-canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-// Crafting altar with 'E' key
-document.addEventListener("keydown", e => {
-  if(e.key.toLowerCase() === "e" && inventory.stone >= 5){
-    inventory.stone -= 5;
-    inventory.altar++;
-    updateInventoryUI();
-    alert("You crafted an Altar!");
-  }
-});
+animate()
 
 </script>
-/* ===============================
-Section 3: Wolves, Bible Quests, Day/Night & Color Fix
-=============================== */
-
-<script>
-// === Color Fix ===
-function createBlock(x,y,z,type){
-  const geo = new THREE.BoxGeometry(BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);
-  const mat = new THREE.MeshStandardMaterial({color: COLORS[type], flatShading:true});
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-  mesh.userData.type = type;
-  return mesh;
-}
-
-// Add additional directional light for better visibility
-const sun2 = new THREE.DirectionalLight(0xffffff,0.5);
-sun2.position.set(-100,200,-100);
-scene.add(sun2);
-
-// === Wolves ===
-let wolves = [];
-function spawnWolf(x,y,z){
-  const geo = new THREE.BoxGeometry(0.8,0.8,0.8);
-  const mat = new THREE.MeshStandardMaterial({color:0x888888});
-  const wolf = new THREE.Mesh(geo,mat);
-  wolf.position.set(x+0.5, y+0.5, z+0.5);
-  wolf.userData.tamed = false;
-  scene.add(wolf);
-  wolves.push(wolf);
-}
-spawnWolf(10,6,10);
-spawnWolf(15,6,12);
-
-// Tame wolves on click
-canvas.addEventListener("click",()=>{
-  raycaster.setFromCamera(mouse,camera);
-  const intersects = raycaster.intersectObjects(wolves);
-  intersects.forEach(wolf=>{
-    if(!wolf.object.userData.tamed){
-      wolf.object.userData.tamed = true;
-      wolf.object.material.color.set(0xffffff); // tamed = white
-      alert("Wolf is now your pet!");
-    }
-  });
-});
-
-// Wolves follow player if tamed
-function updateWolves(delta){
-  wolves.forEach(wolf=>{
-    if(wolf.userData.tamed){
-      const dir = new THREE.Vector3();
-      dir.subVectors(yawObject.position, wolf.position);
-      if(dir.length()>1){
-        dir.setLength(delta*2);
-        wolf.position.add(dir);
-      }
-    }
-  });
-}
-
-// === Bible Quests ===
-let quests = [
-  {text:"Collect 10 wood",done:false,check:()=>inventory.wood>=10},
-  {text:"Craft an altar",done:false,check:()=>inventory.altar>=1},
-  {text:"Tame a wolf",done:false,check:()=>wolves.some(w=>w.userData.tamed)}
-];
-
-function updateQuestsUI(){
-  const ul = document.getElementById("questList");
-  ul.innerHTML = "";
-  quests.forEach(q=>{
-    if(!q.done && q.check()){q.done=true; alert("Quest complete: "+q.text);}
-    const li = document.createElement("li");
-    li.innerText = (q.done?"✓ ":"")+q.text;
-    ul.appendChild(li);
-  });
-}
-setInterval(updateQuestsUI,1000);
-
-// === Day/Night Cycle ===
-let timeOfDay = 0; // 0-24
-function updateDayNight(delta){
-  timeOfDay += delta*0.1;
-  if(timeOfDay>24) timeOfDay -=24;
-  const t = Math.cos((timeOfDay/24)*Math.PI*2)*0.5+0.5; // 0=night,1=day
-  scene.background.setHSL(0.6,0.7,0.5*t + 0.1); // sky brightness
-  sun.intensity = t;
-  sun2.intensity = 0.5*t;
-  ambient.intensity = 0.3*t + 0.2;
-}
-
-// === Integrate with Animate Loop ===
-const originalAnimate = animate;
-animate = function(){
-  requestAnimationFrame(animate);
-  const time = performance.now();
-  const delta = (time-prevTime)/1000;
-  prevTime = time;
-
-  // Call previous movement update
-  originalAnimate();
-
-  // Wolves
-  updateWolves(delta);
-
-  // Day/Night
-  updateDayNight(delta);
-};
-
-<script>
-
-/* ===============================
-Section 4: Save/Load, Infinite Chunks, Hotbar, Bible Story Quests
-=============================== */
-
-// === Save / Load Inventory ===
-function saveInventory(){
-  localStorage.setItem("biblecraft_inventory", JSON.stringify(inventory));
-}
-function loadInventory(){
-  const data = localStorage.getItem("biblecraft_inventory");
-  if(data){
-    inventory = JSON.parse(data);
-    updateInventoryUI();
-  }
-}
-loadInventory();
-setInterval(saveInventory,5000);
-
-// === Save / Load Wolves ===
-function saveWolves(){
-  const wolfData = wolves.map(w=>({x:w.position.x, y:w.position.y, z:w.position.z, tamed:w.userData.tamed}));
-  localStorage.setItem("biblecraft_wolves", JSON.stringify(wolfData));
-}
-function loadWolves(){
-  const data = localStorage.getItem("biblecraft_wolves");
-  if(data){
-    const wolfData = JSON.parse(data);
-    // remove current wolves
-    wolves.forEach(w=>scene.remove(w));
-    wolves = [];
-    wolfData.forEach(wd=>{
-      const geo = new THREE.BoxGeometry(0.8,0.8,0.8);
-      const mat = new THREE.MeshStandardMaterial({color: wd.tamed ? 0xffffff : 0x888888});
-      const wolf = new THREE.Mesh(geo,mat);
-      wolf.position.set(wd.x, wd.y, wd.z);
-      wolf.userData.tamed = wd.tamed;
-      scene.add(wolf);
-      wolves.push(wolf);
-    });
-  }
-}
-loadWolves();
-setInterval(saveWolves,5000);
-
-// === Hotbar selection ===
-let selectedIndex = 0;
-const hotbarKeys = ['1','2','3','4'];
-document.addEventListener("keydown", e=>{
-  const index = hotbarKeys.indexOf(e.key);
-  if(index!==-1) selectedIndex = index;
-});
-function getSelectedBlockType(){
-  const keys = Object.keys(inventory);
-  return keys[selectedIndex] === 'wood' ? BLOCKS.wood :
-         keys[selectedIndex] === 'stone' ? BLOCKS.stone :
-         keys[selectedIndex] === 'dirt' ? BLOCKS.dirt : BLOCKS.stone;
-}
-
-// === Update raycast placement to use selected block type ===
-document.addEventListener("mousedown", e=>{
-  if(!controlsEnabled) return;
-  raycaster.setFromCamera(mouse,camera);
-  const intersects = raycaster.intersectObjects(Array.from(chunks.values()).flatMap(c => c.children));
-  if(intersects.length===0) return;
-  if(e.button===2){
-    const pos = intersects[0].point.clone().add(intersects[0].face.normal);
-    const x=Math.floor(pos.x), y=Math.floor(pos.y), z=Math.floor(pos.z);
-    const type = getSelectedBlockType();
-    if(inventory[Object.keys(inventory)[selectedIndex]]>0){
-      const newBlock = createBlock(x,y,z,type);
-      const chunkX = Math.floor(x/CHUNK_SIZE);
-      const chunkZ = Math.floor(z/CHUNK_SIZE);
-      const key = getChunkKey(chunkX,chunkZ);
-      if(chunks.has(key)) chunks.get(key).add(newBlock);
-      inventory[Object.keys(inventory)[selectedIndex]]--;
-      updateInventoryUI();
-    }
-  }
-});
-
-// === Infinite Chunk Cleanup ===
-function cleanupChunks(px,pz){
-  const currentChunkX = Math.floor(px/CHUNK_SIZE);
-  const currentChunkZ = Math.floor(pz/CHUNK_SIZE);
-  chunks.forEach((group,key)=>{
-    const [cx,cz] = key.split(',').map(Number);
-    if(Math.abs(cx-currentChunkX)>RENDER_DISTANCE+1 || Math.abs(cz-currentChunkZ)>RENDER_DISTANCE+1){
-      scene.remove(group);
-      chunks.delete(key);
-    }
-  });
-}
-
-// Integrate into animate loop
-const originalAnimate2 = animate;
-animate = function(){
-  requestAnimationFrame(animate);
-  const time = performance.now();
-  const delta = (time-prevTime)/1000;
-  prevTime = time;
-
-  // Player movement handled in Section 1
-  originalAnimate2();
-
-  // Wolves follow
-  updateWolves(delta);
-
-  // Day/Night
-  updateDayNight(delta);
-
-  // Cleanup distant chunks
-  cleanupChunks(yawObject.position.x, yawObject.position.z);
-
-  // Save periodically handled already
-};
-
-// === Bible Story Quests ===
-quests.push(
-  {text:"Build Noah's Ark", done:false, check:()=>inventory.wood>=20},
-  {text:"Moses' Altar", done:false, check:()=>inventory.altar>=1},
-  {text:"David's Wolf Companion", done:false, check:()=>wolves.some(w=>w.userData.tamed)}
-);
-
-/* ===============================
-Section 5: Advanced Terrain, Ores, Rivers, Villages
-=============================== */
-
-// Advanced height map with rivers
-function getHeight(x,z){
-  const base = Math.floor(Math.sin(x*0.2)*3 + Math.cos(z*0.2)*3 + 5);
-  const river = Math.sin((x+z)*0.1)*2;
-  return Math.floor(base - river*0.5);
-}
-
-// Ore generation inside stone
-function generateOre(x,y,z){
-  const rand = Math.random();
-  if(rand<0.02) return BLOCKS.stone; // coal placeholder
-  if(rand<0.03) return BLOCKS.stone; // iron placeholder
-  return BLOCKS.stone;
-}
-
-// Generate diverse trees
-function generateTree(x,h,z){
-  const hTree = h+1 + Math.floor(Math.random()*2);
-  // Wood trunk
-  for(let i=0;i<hTree- h;i++){
-    const log = createBlock(x,h+i,z,BLOCKS.wood);
-    addBlockToChunk(x,h+i,z,log);
-  }
-  // Leaves
-  for(let lx=-2;lx<=2;lx++){
-    for(let ly=0;ly<=2;ly++){
-      for(let lz=-2;lz<=2;lz++){
-        if(Math.abs(lx)+Math.abs(ly)+Math.abs(lz)>3) continue;
-        const leaf = createBlock(x+lx,hTree+ly,z+lz,BLOCKS.leaves);
-        addBlockToChunk(x+lx,hTree+ly,z+lz,leaf);
-      }
-    }
-  }
-}
-
-// Helper to add block to correct chunk
-function addBlockToChunk(x,y,z,block){
-  const cx = Math.floor(x/CHUNK_SIZE);
-  const cz = Math.floor(z/CHUNK_SIZE);
-  const key = getChunkKey(cx,cz);
-  if(chunks.has(key)) chunks.get(key).add(block);
-}
-
-// Generate village at chunk center
-function generateVillage(cx,cz){
-  const startX = cx*CHUNK_SIZE + 2;
-  const startZ = cz*CHUNK_SIZE + 2;
-  // Simple 3x3 house with wood walls and roof
-  for(let x=0;x<3;x++){
-    for(let z=0;z<3;z++){
-      for(let y=0;y<3;y++){
-        const blockType = y===2 ? BLOCKS.leaves : BLOCKS.wood;
-        const block = createBlock(startX+x,6+y,startZ+z,blockType);
-        addBlockToChunk(startX+x,6+y,startZ+z,block);
-      }
-    }
-  }
-  // NPC disciple
-  const geo = new THREE.BoxGeometry(0.8,1.8,0.8);
-  const mat = new THREE.MeshStandardMaterial({color:0xffff00});
-  const npc = new THREE.Mesh(geo,mat);
-  npc.position.set(startX+1,7,startZ+1);
-  scene.add(npc);
-}
-
-// Override chunk generation to include caves, rivers, ores, trees, villages
-function generateChunk(cx,cz){
-  const group = new THREE.Group();
-  for(let x=0;x<CHUNK_SIZE;x++){
-    for(let z=0;z<CHUNK_SIZE;z++){
-      const worldX = cx*CHUNK_SIZE + x;
-      const worldZ = cz*CHUNK_SIZE + z;
-      const h = getHeight(worldX, worldZ);
-      for(let y=0;y<=h;y++){
-        let type = y==h ? BLOCKS.grass : (y>h-3 ? BLOCKS.dirt : generateOre(worldX,y,worldZ));
-        const block = createBlock(worldX,y,worldZ,type);
-        group.add(block);
-      }
-      // Trees
-      if(Math.random()<0.05) generateTree(worldX,h,worldZ);
-    }
-  }
-  // Random village in some chunks
-  if(Math.random()<0.05) generateVillage(cx,cz);
-  scene.add(group);
-  chunks.set(getChunkKey(cx,cz), group);
-}
-
-</script>
+</body>
+</html>
