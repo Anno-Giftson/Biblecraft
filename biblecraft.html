@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Biblecraft Browser</title>
+<style>
+body{margin:0;overflow:hidden;font-family:Arial;}
+#ui{position:fixed;top:10px;left:10px;background:rgba(0,0,0,0.5);color:white;padding:10px;border-radius:8px;}
+#inventory{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;}
+.slot{width:70px;height:50px;background:rgba(0,0,0,0.7);color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:12px;}
+#quests{position:fixed;right:10px;top:10px;background:rgba(0,0,0,0.6);color:white;padding:10px;width:240px;border-radius:8px;}
+canvas{display:block;}
+</style>
+</head>
+<body>
+<div id="ui"><b>Biblecraft</b><br>WASD Move | Mouse Look | Left Click Mine | Right Click Place | E Craft Altar</div>
+<div id="inventory"></div>
+<div id="quests"><b>Bible Quests</b><ul id="questList"></ul></div>
+<canvas id="game"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script>
+// ======= CORE =======
+const canvas=document.getElementById("game")
+const renderer=new THREE.WebGLRenderer({canvas})
+renderer.setSize(window.innerWidth,window.innerHeight)
+renderer.setPixelRatio(window.devicePixelRatio)
+
+const scene=new THREE.Scene()
+const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000)
+
+const ambient=new THREE.AmbientLight(0xffffff,0.6)
+scene.add(ambient)
+const sun=new THREE.DirectionalLight(0xffffff,1)
+sun.position.set(100,100,100)
+scene.add(sun)
+
+// ======= BLOCKS & TEXTURES =======
+const loader=new THREE.TextureLoader()
+const textures={
+grass: loader.load("https://i.imgur.com/Oqg0pUp.png"),
+dirt: loader.load("https://i.imgur.com/MqOZzN3.png"),
+stone: loader.load("https://i.imgur.com/2K0wI28.png"),
+wood: loader.load("https://i.imgur.com/tkHRnWy.png"),
+leaves: loader.load("https://i.imgur.com/bcRExsH.png"),
+altar: loader.load("https://i.imgur.com/vhF8MjF.png")
+}
+
+const BLOCKS={air:0,grass:1,dirt:2,stone:3,wood:4,leaves:5,altar:6}
+const COLORS={1:textures.grass,2:textures.dirt,3:textures.stone,4:textures.wood,5:textures.leaves,6:textures.altar}
+const CHUNK_SIZE=16
+let chunks=new Map()
+
+function getChunkKey(cx,cz){return cx+","+cz}
+
+function createBlock(x,y,z,type){
+  if(type===0) return null
+  const geo=new THREE.BoxGeometry(1,1,1)
+  const mat=new THREE.MeshLambertMaterial({map:COLORS[type]})
+  const mesh=new THREE.Mesh(geo,mat)
+  mesh.position.set(x+0.5,y+0.5,z+0.5)
+  mesh.userData.type=type
+  return mesh
+}
+
+function getHeight(x,z){return Math.floor(Math.sin(x*0.2)*3+Math.cos(z*0.2)*3+5)}
+
+function generateChunk(cx,cz){
+  const group=new THREE.Group()
+  for(let x=0;x<CHUNK_SIZE;x++){
+    for(let z=0;z<CHUNK_SIZE;z++){
+      const worldX=cx*CHUNK_SIZE+x
+      const worldZ=cz*CHUNK_SIZE+z
+      const h=getHeight(worldX,worldZ)
+      for(let y=0;y<=h;y++){
+        let type=y==h?BLOCKS.grass:(y>h-3?BLOCKS.dirt:BLOCKS.stone)
+        const block=createBlock(worldX,y,worldZ,type)
+        if(block) group.add(block)
+      }
+      // tree
+      if(Math.random()<0.05){
+        const hTree=h+1
+        for(let i=0;i<3;i++) group.add(createBlock(worldX,hTree+i,worldZ,BLOCKS.wood))
+        for(let lx=-1;lx<=1;lx++) for(let ly=0;ly<=1;ly++) for(let lz=-1;lz<=1;lz++){
+          if(Math.abs(lx)+Math.abs(ly)+Math.abs(lz)>1) continue
+          group.add(createBlock(worldX+lx,hTree+2+ly,worldZ+lz,BLOCKS.leaves))
+        }
+      }
+    }
+  }
+  scene.add(group)
+  chunks.set(getChunkKey(cx,cz),group)
+}
+
+function updateChunks(px,pz){
+  const curX=Math.floor(px/CHUNK_SIZE)
+  const curZ=Math.floor(pz/CHUNK_SIZE)
+  for(let dx=-3;dx<=3;dx++) for(let dz=-3;dz<=3;dz++){
+    const key=getChunkKey(curX+dx,curZ+dz)
+    if(!chunks.has(key)) generateChunk(curX+dx,curZ+dz)
+  }
+}
+
+// ======= PLAYER =======
+const player=new THREE.Object3D()
+player.position.set(0,10,0)
+player.add(camera)
+scene.add(player)
+
+let pitch=0,yaw=0
+document.body.onclick=()=>document.body.requestPointerLock()
+document.addEventListener("mousemove",e=>{
+  if(document.pointerLockElement){
+    yaw-=e.movementX*0.002
+    pitch-=e.movementY*0.002
+    pitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch))
+    player.rotation.y=yaw
+    camera.rotation.x=pitch
+  }
+})
+
+const keys={}
+document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true)
+document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false)
+
+// ======= INVENTORY =======
+let inventory={wood:0,stone:0,dirt:0,altar:0}
+const inventoryDiv=document.getElementById("inventory")
+function updateInventoryUI(){
+  inventoryDiv.innerHTML=""
+  for(let i in inventory){
+    const slot=document.createElement("div")
+    slot.className="slot"
+    slot.innerText=i+"\n"+inventory[i]
+    inventoryDiv.appendChild(slot)
+  }
+}
+updateInventoryUI()
+
+let selectedIndex=0
+const hotbarKeys=['1','2','3','4']
+document.addEventListener("keydown",e=>{
+  const idx=hotbarKeys.indexOf(e.key)
+  if(idx!==-1) selectedIndex=idx
+})
+
+function getSelectedBlockType(){
+  const keys=Object.keys(inventory)
+  return keys[selectedIndex]=="wood"?BLOCKS.wood:
+         keys[selectedIndex]=="stone"?BLOCKS.stone:
+         keys[selectedIndex]=="dirt"?BLOCKS.dirt:BLOCKS.stone
+}
+
+// ======= RAYCAST =======
+const raycaster=new THREE.Raycaster()
+const mouse=new THREE.Vector2(0,0)
+canvas.addEventListener("mousedown",e=>{
+  raycaster.setFromCamera(mouse,camera)
+  const objs=Array.from(chunks.values()).flatMap(c=>c.children)
+  const intersects=raycaster.intersectObjects(objs)
+  if(intersects.length==0) return
+  const block=intersects[0].object
+  if(e.button==0){
+    const type=block.userData.type
+    if(type==BLOCKS.wood) inventory.wood++
+    else if(type==BLOCKS.stone) inventory.stone++
+    else if(type==BLOCKS.dirt) inventory.dirt++
+    block.parent.remove(block)
+    updateInventoryUI()
+  } else if(e.button==2){
+    const pos=intersects[0].point.clone().add(intersects[0].face.normal)
+    const x=Math.floor(pos.x),y=Math.floor(pos.y),z=Math.floor(pos.z)
+    const type=getSelectedBlockType()
+    if(inventory[Object.keys(inventory)[selectedIndex]]>0){
+      const b=createBlock(x,y,z,type)
+      const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE)
+      const key=getChunkKey(cx,cz)
+      if(chunks.has(key)) chunks.get(key).add(b)
+      inventory[Object.keys(inventory)[selectedIndex]]--
+      updateInventoryUI()
+    }
+  }
+})
+canvas.addEventListener('contextmenu',e=>e.preventDefault())
+document.addEventListener("keydown",e=>{
+  if(e.key.toLowerCase()=="e" && inventory.stone>=5){
+    inventory.stone-=5
+    inventory.altar++
+    updateInventoryUI()
+    alert("You crafted an Altar!")
+  }
+})
+
+// ======= WOLVES =======
+let wolves=[]
+function spawnWolf(x,y,z){
+  const geo=new THREE.BoxGeometry(0.8,0.8,0.8)
+  const mat=new THREE.MeshLambertMaterial({color:0x888888})
+  const wolf=new THREE.Mesh(geo,mat)
+  wolf.position.set(x+0.5,y+0.5,z+0.5)
+  wolf.userData.tamed=false
+  scene.add(wolf)
+  wolves.push(wolf)
+}
+spawnWolf(5,6,5)
+spawnWolf(-5,6,-5)
+
+canvas.addEventListener("click",()=>{
+  raycaster.setFromCamera(mouse,camera)
+  const intersects=raycaster.intersectObjects(wolves)
+  intersects.forEach(w=>{
+    if(!w.object.userData.tamed){
+      w.object.userData.tamed=true
+      w.object.material.color.set(0xffffff)
+      alert("Wolf is now your pet!")
+    }
+  })
+})
+
+function updateWolves(dt){
+  wolves.forEach(w=>{
+    if(w.userData.tamed){
+      const dir=new THREE.Vector3()
+      dir.subVectors(player.position,w.position)
+      if(dir.length()>1){
+        dir.setLength(dt*2)
+        w.position.add(dir)
+      }
+    }
+  })
+}
+
+// ======= QUESTS =======
+let quests=[
+  {text:"Collect 10 wood",done:false,check:()=>inventory.wood>=10},
+  {text:"Craft an altar",done:false,check:()=>inventory.altar>=1},
+  {text:"Tame a wolf",done:false,check:()=>wolves.some(w=>w.userData.tamed)}
+]
+
+function updateQuestsUI(){
+  const ul=document.getElementById("questList")
+  ul.innerHTML=""
+  quests.forEach(q=>{
+    if(!q.done && q.check()){q.done=true; alert("Quest complete: "+q.text)}
+    const li=document.createElement("li")
+    li.innerText=(q.done?"✓ ":"")+q.text
+    ul.appendChild(li)
+  })
+}
+setInterval(updateQuestsUI,1000)
+
+// ======= DAY/NIGHT =======
+let timeOfDay=12
+function updateDayNight(dt){
+  timeOfDay+=dt*0.1
+  if(timeOfDay>24) timeOfDay-=24
+  const t=Math.cos((timeOfDay/24)*Math.PI*2)*0.5+0.5
+  scene.background=new THREE.Color().setHSL(0.6,0.7,0.5*t+0.1)
+  sun.intensity=t
+  ambient.intensity=0.3*t+0.2
+}
+
+// ======= SAVE/LOAD =======
+function saveProgress(){
+  localStorage.setItem("biblecraft_inventory",JSON.stringify(inventory))
+}
+function loadProgress(){
+  const data=localStorage.getItem("biblecraft_inventory")
+  if(data){inventory=JSON.parse(data);updateInventoryUI()}
+}
+loadProgress()
+setInterval(saveProgress,5000)
+
+// ======= ANIMATE =======
+let prev=performance.now()
+function animate(){
+  requestAnimationFrame(animate)
+  const now=performance.now()
+  const dt=(now-prev)/1000
+  prev=now
+  const speed=5
+  if(keys['w']) player.position.z-=speed*dt
+  if(keys['s']) player.position.z+=speed*dt
+  if(keys['a']) player.position.x-=speed*dt
+  if(keys['d']) player.position.x+=speed*dt
+  updateChunks(player.position.x,player.position.z)
+  updateWolves(dt)
+  updateDayNight(dt)
+  renderer.render(scene,camera)
+}
+animate()
+</script>
+</body>
+</html>
